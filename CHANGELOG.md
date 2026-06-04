@@ -16,3 +16,5 @@ All notable changes to this project are documented here. The format follows
 - Command-line interface `audio8bit` (`audio8bit/cli.py`) with `-i/--input`,
   `-o/--output`, `--bits`, `--rate`, `--mono` and `--version`, wired as a
   `console_scripts` entry point; exit codes 0/1/2 (branch `feat/cli`).
+- Compact `README.md`: what it does, requirements, install, usage examples
+  and a flag reference (branch `docs/readme`).
