@@ -13,3 +13,6 @@ All notable changes to this project are documented here. The format follows
   format, bitcrusher pipeline (sample-rate decimation + bit-depth
   quantisation) and 8-bit unsigned PCM WAV output, with optional ffmpeg
   re-encoding to other containers (branch `feat/dsp-core`).
+- Command-line interface `audio8bit` (`audio8bit/cli.py`) with `-i/--input`,
+  `-o/--output`, `--bits`, `--rate`, `--mono` and `--version`, wired as a
+  `console_scripts` entry point; exit codes 0/1/2 (branch `feat/cli`).
