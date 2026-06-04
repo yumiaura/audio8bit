@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+*.egg
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Test artifacts / generated audio
+*_8bit.wav
+/tmp/
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/

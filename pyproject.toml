@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "audio8bit"
+version = "0.1.0"
+description = "CLI to convert any audio file into 8-bit / chiptune-style sound (bitcrusher)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Olya Yumi" }]
+keywords = ["audio", "8bit", "chiptune", "bitcrusher", "cli", "dsp", "ffmpeg"]
+classifiers = [
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Sound/Audio :: Conversion",
+]
+dependencies = ["numpy>=1.21"]
+
+[tool.setuptools]
+packages = ["audio8bit"]
