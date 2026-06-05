@@ -10,9 +10,13 @@ square-wave voice ("remove the words, keep the melody"):
    source-separation model) extracts the sung melody on its own.
 2. **Pitch tracking** — librosa's pYIN follows the fundamental frequency of the
    isolated, monophonic voice over time.
-3. **Square-wave synthesis** — one phase-continuous square voice replays the
-   melody, optionally snapped to musical semitones.
-4. **8-bit output** — quantised to 8-bit PCM at a low sample rate, written as
+3. **Note segmentation** — the pitch is snapped to semitones and grouped into
+   discrete notes (short flicker dropped), so you get distinct beeps, not a
+   sliding drone.
+4. **Alias-free synthesis** — each note is a band-limited pulse (only harmonics
+   below Nyquist) with a short envelope, so it sounds like a clean retro beep
+   instead of harsh aliasing noise.
+5. **8-bit output** — quantised to 8-bit PCM at a low sample rate, written as
    WAV or re-encoded to your chosen format.
 
 > **Heads up:** Demucs pulls in PyTorch (a large install) and downloads its
@@ -42,7 +46,7 @@ python main.py -i song.mp3
 audio8bit -i song.mp3                 # -> output.mp3 (keeps the input format)
 audio8bit -i song.mp3 -f ogg          # -> output.ogg
 audio8bit -i song.mp3 -o ring.wav     # explicit output path
-audio8bit -i song.mp3 --no-semitones --duty 0.25
+audio8bit -i song.mp3 --duty 0.25 --rate 22050
 ```
 
 | Flag             | Default          | Description                                  |
@@ -51,9 +55,8 @@ audio8bit -i song.mp3 --no-semitones --duty 0.25
 | `-o, --output`   | `output.<ext>`   | Output path (overrides `-f`)                 |
 | `-f, --format`   | input's format   | Output format/extension, e.g. `ogg`          |
 | `--bits`         | `8`              | Bit depth to quantise to (1–8)               |
-| `--rate`         | `8000`           | Output sample rate in Hz                     |
-| `--duty`         | `0.5`            | Square-wave duty cycle (0–1)                 |
-| `--semitones`    | on               | Snap the melody to semitones (`--no-semitones` to disable) |
+| `--rate`         | `11025`          | Output sample rate in Hz                     |
+| `--duty`         | `0.5`            | Pulse-wave duty cycle (0–1)                  |
 
 Exit codes: `0` success, `1` conversion error, `2` bad arguments.
 
