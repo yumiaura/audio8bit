@@ -26,15 +26,17 @@ python main.py -i song.mp3 -o song_8bit.wav
 ## Usage
 
 ```bash
-audio8bit -i song.mp3                 # -> song_8bit.wav next to the input
-audio8bit -i song.mp3 -o crushed.wav  # explicit output
+audio8bit -i song.mp3                 # -> output.mp3 (keeps the input format)
+audio8bit -i song.mp3 -f ogg          # -> output.ogg
+audio8bit -i song.mp3 -o crushed.wav  # explicit output path
 audio8bit -i song.flac --bits 4 --rate 11025 --mono
 ```
 
 | Flag            | Default               | Description                              |
 | --------------- | --------------------- | ---------------------------------------- |
 | `-i, --input`   | — (required)          | Input audio (any format ffmpeg can read) |
-| `-o, --output`  | `<input>_8bit.wav`    | Output path; non-`.wav` is re-encoded    |
+| `-o, --output`  | `output.<ext>`        | Output path (overrides `-f`)             |
+| `-f, --format`  | input's format        | Output format/extension, e.g. `ogg`      |
 | `--bits`        | `8`                   | Bit depth to quantise to (1–8)           |
 | `--rate`        | `8000`                | Target sample rate in Hz                 |
 | `--mono`        | off                   | Downmix to a single channel              |
