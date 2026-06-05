@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+- Synthesis no longer screeches: the raw `sign()` square aliased badly at low
+  sample rates. Replaced with discrete note segmentation (snap to semitones,
+  group same-pitch frames, drop flicker) and band-limited pulse synthesis
+  (only harmonics below Nyquist) with per-note envelopes — clean retro beeps
+  instead of noise. Default `--rate` raised to 11025; `--semitones` flag
+  removed (snapping is always on); branch `fix/anti-alias-notes`.
+
 ### Changed
 - Melody extraction now isolates the sung vocal with Demucs and tracks its
   pitch with librosa's pYIN, instead of `L − R` cancellation plus

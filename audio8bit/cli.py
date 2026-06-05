@@ -44,11 +44,7 @@ def build_parser():
     )
     parser.add_argument(
         "--duty", type=float, default=DEFAULT_DUTY,
-        help=f"square-wave duty cycle, 0-1 (default: {DEFAULT_DUTY})",
-    )
-    parser.add_argument(
-        "--semitones", action=argparse.BooleanOptionalAction, default=True,
-        help="snap the melody to musical semitones (default: on)",
+        help=f"pulse-wave duty cycle, 0-1 (default: {DEFAULT_DUTY})",
     )
     parser.add_argument(
         "--version", action="version", version=f"audio8bit {version}",
@@ -67,7 +63,6 @@ def main(argv=None):
             bits=args.bits,
             rate=args.rate,
             duty=args.duty,
-            semitones=args.semitones,
         )
     except ConversionError as error:
         print(f"audio8bit: {error}", file=sys.stderr)

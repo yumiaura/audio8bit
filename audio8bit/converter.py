@@ -32,9 +32,13 @@ HOP = 512
 PITCH_FMIN = 65.0
 PITCH_FMAX = 2093.0
 
-DEFAULT_RATE = 8000
+DEFAULT_RATE = 11025
 DEFAULT_BITS = 8
 DEFAULT_DUTY = 0.5
+
+MIN_NOTE_SECONDS = 0.06
+MAX_HARMONICS = 40
+NYQUIST_FRACTION = 0.45
 
 
 class ConversionError(Exception):
@@ -132,28 +136,81 @@ def snap_to_semitones(f0):
     return out
 
 
-def synthesize_square(f0, voiced, hop, analysis_rate, out_rate, duty=DEFAULT_DUTY):
-    """Render the pitch contour as a single phase-continuous square voice."""
+def segment_notes(f0, voiced, hop, analysis_rate, min_seconds=MIN_NOTE_SECONDS):
+    """Group consecutive same-pitch voiced frames into discrete notes.
+
+    Expects ``f0`` already snapped to semitones, so equal values mark one note.
+    Returns a list of (start_seconds, duration_seconds, frequency) and drops
+    notes shorter than ``min_seconds`` (pitch-tracking flicker at note edges).
+    """
+    notes = []
+    index = 0
     frames = f0.size
-    total = int(frames * hop / analysis_rate * out_rate)
-    if total <= 0:
+    while index < frames:
+        if not voiced[index] or f0[index] <= 0:
+            index += 1
+            continue
+        run = index
+        while run < frames and voiced[run] and f0[run] == f0[index]:
+            run += 1
+        start = index * hop / analysis_rate
+        duration = (run - index) * hop / analysis_rate
+        if duration >= min_seconds:
+            notes.append((start, duration, float(f0[index])))
+        index = run
+    return notes
+
+
+def band_limited_pulse(frequency, count, sample_rate, duty=DEFAULT_DUTY):
+    """Synthesize an alias-free pulse: only harmonics below Nyquist are summed.
+
+    A raw ``sign()`` square contains harmonics above Nyquist that fold back as
+    the harsh aliasing screech; building the wave additively from the harmonics
+    that actually fit keeps the retro tone without the noise.
+    """
+    if count <= 0 or frequency <= 0:
+        return np.zeros(max(0, count), dtype=np.float64)
+    nyquist = NYQUIST_FRACTION * sample_rate
+    harmonics = min(MAX_HARMONICS, int(nyquist / frequency))
+    time = np.arange(count) / sample_rate
+    wave = np.zeros(count, dtype=np.float64)
+    for harmonic in range(1, harmonics + 1):
+        amplitude = (2.0 / (harmonic * np.pi)) * np.sin(harmonic * np.pi * duty)
+        if amplitude:
+            wave += amplitude * np.sin(2.0 * np.pi * frequency * harmonic * time)
+    peak = float(np.max(np.abs(wave))) if wave.size else 0.0
+    return wave / peak if peak > 0 else wave
+
+
+def note_envelope(count, sample_rate, attack=0.006, release=0.03):
+    """A short attack/release envelope so notes start and end without clicks."""
+    envelope = np.ones(count, dtype=np.float64)
+    rise = min(int(attack * sample_rate), count // 2)
+    fall = min(int(release * sample_rate), count // 2)
+    if rise > 0:
+        envelope[:rise] = np.linspace(0.0, 1.0, rise)
+    if fall > 0:
+        envelope[-fall:] = np.linspace(1.0, 0.0, fall)
+    return envelope
+
+
+def render_notes(notes, sample_rate, duty=DEFAULT_DUTY):
+    """Render segmented notes into one mono signal with rests between them."""
+    if not notes:
         return np.zeros(0, dtype=np.float32)
-
-    positions = np.arange(total) * analysis_rate / (hop * out_rate)
-    frame_index = np.minimum(positions.astype(int), frames - 1)
-    pitch = f0[frame_index]
-    gate = smooth_gate(voiced[frame_index].astype(np.float32), out_rate)
-
-    phase = np.cumsum(2.0 * np.pi * pitch / out_rate)
-    wave_shape = np.where((phase % (2.0 * np.pi)) < duty * 2.0 * np.pi, 1.0, -1.0)
-    return (wave_shape * gate * 0.7).astype(np.float32)
-
-
-def smooth_gate(gate, sample_rate):
-    """Round voicing on/off edges over ~5 ms to avoid clicks."""
-    width = max(1, int(0.005 * sample_rate))
-    kernel = np.ones(width) / width
-    return np.convolve(gate, kernel, mode="same")
+    span = max(start + duration for start, duration, frequency in notes)
+    total = int(span * sample_rate) + 1
+    buffer = np.zeros(total, dtype=np.float64)
+    for start, duration, frequency in notes:
+        count = int(duration * sample_rate)
+        if count <= 0:
+            continue
+        offset = int(start * sample_rate)
+        voice = band_limited_pulse(frequency, count, sample_rate, duty)
+        voice *= note_envelope(count, sample_rate) * 0.8
+        end = min(offset + count, total)
+        buffer[offset:end] += voice[:end - offset]
+    return buffer.astype(np.float32)
 
 
 def quantize(samples, bits):
@@ -222,7 +279,7 @@ def write_output(destination, samples_u8, sample_rate, channels):
 
 
 def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
-            rate=DEFAULT_RATE, duty=DEFAULT_DUTY, semitones=True):
+            rate=DEFAULT_RATE, duty=DEFAULT_DUTY):
     """Convert a song into a monophonic 8-bit melody and write it to disk.
 
     Returns the path that was written.
@@ -246,11 +303,20 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
             "No sung melody could be detected (the vocal stem may be empty or "
             "have no clear pitch)."
         )
-    f0 = smooth_pitch(f0, voiced)
-    if semitones:
-        f0 = snap_to_semitones(f0)
 
-    voice = synthesize_square(f0, voiced, HOP, sample_rate, rate, duty)
+    # Snap to semitones and stabilise: a second median pass removes single-frame
+    # flicker between neighbouring notes so segments do not fragment.
+    f0 = snap_to_semitones(smooth_pitch(f0, voiced, window=7))
+    f0 = snap_to_semitones(smooth_pitch(f0, voiced, window=7))
+
+    notes = segment_notes(f0, voiced, HOP, sample_rate)
+    if not notes:
+        raise ConversionError(
+            "No stable notes could be detected in the melody (try a clearer or "
+            "longer track)."
+        )
+
+    voice = render_notes(notes, rate, duty)
     samples_u8 = to_uint8(quantize(voice, bits))
     write_output(destination, samples_u8, rate, 1)
     return destination
