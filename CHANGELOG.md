@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+- Default output is now `output.<ext>` in the current directory and keeps the
+  input's format by default; new `-f/--format` flag overrides the output
+  format (e.g. `ogg`), while an explicit `-o` still wins (branch
+  `feat/output-format`).
+
 ### Added
 - Project scaffold: packaging (`pyproject.toml`), MIT license, ignore rules
   and changelog (branch `main`).
