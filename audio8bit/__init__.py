@@ -1,3 +1,3 @@
-"""audio8bit: turn any audio file into 8-bit / chiptune-style sound."""
+"""audio8bit: turn a song into a monophonic 8-bit melody (vocals removed)."""
 
 version = "0.1.0"
