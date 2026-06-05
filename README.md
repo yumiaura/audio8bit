@@ -1,23 +1,23 @@
 # audio8bit
 
-Turn a song into a monophonic 8-bit melody — like an old phone ringtone or
-early game console — straight from the command line.
+Turn a song's sung melody into a monophonic 8-bit ringtone — like an old phone
+or early game console — straight from the command line.
 
-It strips the vocals, follows the leading pitch and replays it with a single
-square-wave voice:
+It isolates the vocal, follows its pitch and replays it with a single
+square-wave voice ("remove the words, keep the melody"):
 
-1. **Vocal removal** — for stereo input, centre-panned content (lead vocals,
-   usually kick/bass) is cancelled by subtracting the channels (`L − R`),
-   leaving the backing instruments.
-2. **Pitch tracking** — short frames are analysed by autocorrelation to follow
-   the fundamental frequency over time (with a voiced/unvoiced gate).
+1. **Vocal isolation** — [Demucs](https://github.com/adefossez/demucs) (a neural
+   source-separation model) extracts the sung melody on its own.
+2. **Pitch tracking** — librosa's pYIN follows the fundamental frequency of the
+   isolated, monophonic voice over time.
 3. **Square-wave synthesis** — one phase-continuous square voice replays the
    melody, optionally snapped to musical semitones.
 4. **8-bit output** — quantised to 8-bit PCM at a low sample rate, written as
    WAV or re-encoded to your chosen format.
 
-Runs on `numpy` and `ffmpeg` only — no machine-learning models. The melody is
-extracted from a full mix, so the result is an approximation, not a transcription.
+> **Heads up:** Demucs pulls in PyTorch (a large install) and downloads its
+> model (~80 MB) on first run, and separation takes a few seconds per track.
+> This is what makes the melody actually recognizable. Everything runs locally.
 
 ## Requirements
 
@@ -30,7 +30,7 @@ extracted from a full mix, so the result is an approximation, not a transcriptio
 pip install audio8bit
 ```
 
-Or run straight from a clone, without installing — only `numpy` is needed:
+Or run straight from a clone (install the deps first: `pip install numpy demucs librosa`):
 
 ```bash
 python main.py -i song.mp3

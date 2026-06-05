@@ -7,6 +7,11 @@ All notable changes to this project are documented here. The format follows
 ## Unreleased
 
 ### Changed
+- Melody extraction now isolates the sung vocal with Demucs and tracks its
+  pitch with librosa's pYIN, instead of `L − R` cancellation plus
+  autocorrelation on the full mix — the resulting ringtone is actually
+  recognizable. Adds `demucs` and `librosa` dependencies (PyTorch, model
+  downloaded on first run); branch `feat/demucs-melody`.
 - Core behaviour is now monophonic melody synthesis instead of a raw
   bitcrusher: the input has its vocals removed (`L − R` centre cancellation),
   its leading pitch tracked by autocorrelation, and is replayed as a single

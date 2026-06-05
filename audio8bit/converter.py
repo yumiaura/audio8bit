@@ -1,23 +1,22 @@
-"""DSP core: turn a song into a monophonic 8-bit melody.
+"""DSP core: turn a song into a recognizable monophonic 8-bit melody.
 
-The pipeline strips the vocals, follows the leading pitch and replays it with a
-single square-wave voice — the sound of old monophonic phone ringtones and
-early game consoles:
+The pipeline isolates the sung melody and replays it with a single square-wave
+voice — the sound of old monophonic phone ringtones and early game consoles:
 
-* vocal removal — for stereo input, centre-panned content (lead vocals, and
-  usually kick/bass) is cancelled by subtracting the channels (``L - R``),
-  leaving the backing instruments whose melody we follow;
-* pitch tracking — short overlapping frames are analysed by autocorrelation to
-  estimate the fundamental frequency (f0) over time, with a voiced/unvoiced
-  gate;
-* square-wave synthesis — a single phase-continuous square voice replays the
-  pitch contour (optionally snapped to musical semitones), gated by voicing;
+* vocal isolation — Demucs (a neural source-separation model) extracts the
+  vocal stem, i.e. the sung melody on its own, dropping the backing;
+* pitch tracking — librosa's pYIN follows the fundamental frequency (f0) of the
+  isolated, now-monophonic voice over time, which is far more reliable than
+  analysing a full mix;
+* square-wave synthesis — one phase-continuous square voice replays the pitch
+  contour (optionally snapped to musical semitones), gated by voicing;
 * 8-bit output — the voice is quantised to 8-bit unsigned PCM at a low sample
   rate and written as WAV, or re-encoded by ffmpeg to the chosen format.
 
-Everything runs on numpy and ffmpeg only — no machine-learning dependencies.
-The melody is extracted from a full mix, so the result is an approximation,
-not a transcription.
+Demucs and librosa are heavy dependencies (Demucs pulls in PyTorch and
+downloads model weights on first use), so they are imported lazily with a
+clear message if they are missing. "Remove the words, keep the melody": the
+lyrics and vocal timbre are gone, only the tune remains.
 """
 
 import shutil
@@ -28,12 +27,10 @@ from pathlib import Path
 
 import numpy as np
 
-ANALYSIS_RATE = 22050
-FRAME = 2048
+DEMUCS_MODEL = "htdemucs"
 HOP = 512
-FMIN = 80.0
-FMAX = 1000.0
-VOICED_THRESHOLD = 0.3
+PITCH_FMIN = 65.0
+PITCH_FMAX = 2093.0
 
 DEFAULT_RATE = 8000
 DEFAULT_BITS = 8
@@ -55,113 +52,59 @@ def require_tool(name):
     return path
 
 
-def probe_audio(path):
-    """Return (sample_rate, channels) of the input via ffprobe."""
-    ffprobe = require_tool("ffprobe")
-    command = [
-        ffprobe, "-v", "error",
-        "-select_streams", "a:0",
-        "-show_entries", "stream=sample_rate,channels",
-        "-of", "csv=p=0", str(path),
-    ]
-    completed = subprocess.run(command, capture_output=True, text=True)
-    if completed.returncode != 0 or not completed.stdout.strip():
+def separate_vocals(path):
+    """Isolate the vocal stem with Demucs and return (mono_signal, sample_rate)."""
+    try:
+        import torch
+        from demucs.apply import apply_model
+        from demucs.audio import AudioFile
+        from demucs.pretrained import get_model
+    except ImportError as missing:
         raise ConversionError(
-            f"Could not read audio stream from '{path}'. "
-            f"ffprobe said: {completed.stderr.strip() or 'no audio stream found'}"
-        )
-    fields = completed.stdout.strip().splitlines()[0].split(",")
-    sample_rate, channels = int(fields[0]), int(fields[1])
-    return sample_rate, channels
+            "demucs is required to isolate the melody. "
+            "Install it with 'pip install demucs librosa'."
+        ) from missing
 
-
-def decode_to_float(path, sample_rate, channels):
-    """Decode the input to interleaved float32 samples via ffmpeg.
-
-    Returns a 2-D array shaped (frames, channels) in the range [-1, 1].
-    """
-    ffmpeg = require_tool("ffmpeg")
-    command = [
-        ffmpeg, "-v", "error", "-i", str(path),
-        "-f", "f32le", "-acodec", "pcm_f32le",
-        "-ac", str(channels), "-ar", str(sample_rate),
-        "pipe:1",
-    ]
-    completed = subprocess.run(command, capture_output=True)
-    if completed.returncode != 0:
+    model = get_model(DEMUCS_MODEL)
+    model.cpu().eval()
+    if "vocals" not in model.sources:
         raise ConversionError(
-            f"ffmpeg failed to decode '{path}': "
-            f"{completed.stderr.decode(errors='replace').strip()}"
+            f"Demucs model has no 'vocals' stem (got: {', '.join(model.sources)})."
         )
-    samples = np.frombuffer(completed.stdout, dtype=np.float32)
-    if samples.size == 0:
-        raise ConversionError(f"Decoded no audio samples from '{path}'.")
-    return samples.reshape(-1, channels)
+
+    wav = AudioFile(str(path)).read(
+        streams=0, samplerate=model.samplerate, channels=model.audio_channels,
+    )
+    reference = wav.mean(0)
+    wav = (wav - reference.mean()) / (reference.std() + 1e-8)
+    with torch.no_grad():
+        sources = apply_model(model, wav[None], device="cpu", progress=False)[0]
+    sources = sources * reference.std() + reference.mean()
+
+    vocals = sources[model.sources.index("vocals")].mean(0)
+    return vocals.cpu().numpy().astype(np.float32), int(model.samplerate)
 
 
-def remove_vocals(samples):
-    """Cancel centre-panned content and return a mono signal.
-
-    For stereo, ``L - R`` removes anything identical in both channels (lead
-    vocals, and usually centred drums/bass), leaving the panned backing. Mono
-    input has nothing to cancel and is passed through.
-    """
-    if samples.shape[1] >= 2:
-        mono = samples[:, 0] - samples[:, 1]
-    else:
-        mono = samples[:, 0]
-    return mono.astype(np.float32)
-
-
-def track_pitch(signal, sample_rate, frame=FRAME, hop=HOP,
-                fmin=FMIN, fmax=FMAX, voiced_threshold=VOICED_THRESHOLD):
-    """Estimate the fundamental frequency per frame by autocorrelation.
+def track_pitch(signal, sample_rate, hop=HOP, fmin=PITCH_FMIN, fmax=PITCH_FMAX):
+    """Follow the fundamental frequency of a monophonic signal with pYIN.
 
     Returns (f0, voiced): f0 in Hz (0 where unvoiced) and a boolean mask, one
     value per analysis frame.
     """
-    count = signal.size
-    min_lag = max(2, int(sample_rate / fmax))
-    max_lag = min(frame - 1, int(sample_rate / fmin))
-    frames = 1 + max(0, (count - frame) // hop)
-    f0 = np.zeros(frames, dtype=np.float64)
-    voiced = np.zeros(frames, dtype=bool)
-    if frames == 0 or max_lag <= min_lag:
-        return f0, voiced
+    try:
+        import librosa
+    except ImportError as missing:
+        raise ConversionError(
+            "librosa is required for pitch tracking. "
+            "Install it with 'pip install demucs librosa'."
+        ) from missing
 
-    global_rms = float(np.sqrt(np.mean(signal ** 2))) + 1e-9
-    size = 1
-    while size < 2 * frame:
-        size <<= 1
-
-    for index in range(frames):
-        start = index * hop
-        block = signal[start:start + frame]
-        block = block - block.mean()
-        if float(np.sqrt(np.mean(block ** 2))) < 0.1 * global_rms:
-            continue
-        spectrum = np.fft.rfft(block, size)
-        autocorr = np.fft.irfft(spectrum * np.conj(spectrum))[:max_lag + 1]
-        if autocorr[0] <= 0:
-            continue
-        peak = int(np.argmax(autocorr[min_lag:max_lag + 1])) + min_lag
-        if autocorr[peak] / autocorr[0] < voiced_threshold:
-            continue
-        lag = refine_peak(autocorr, peak, max_lag)
-        f0[index] = sample_rate / lag
-        voiced[index] = True
-    return f0, voiced
-
-
-def refine_peak(autocorr, peak, max_lag):
-    """Parabolic interpolation of an autocorrelation peak for sub-sample lag."""
-    if peak <= 0 or peak >= max_lag:
-        return float(peak)
-    left, centre, right = autocorr[peak - 1], autocorr[peak], autocorr[peak + 1]
-    denominator = left - 2.0 * centre + right
-    if denominator == 0:
-        return float(peak)
-    return peak + 0.5 * (left - right) / denominator
+    f0, voiced_flag, voiced_prob = librosa.pyin(
+        signal, sr=sample_rate, fmin=fmin, fmax=fmax, hop_length=hop,
+    )
+    f0 = np.nan_to_num(f0, nan=0.0)
+    voiced = np.asarray(voiced_flag, dtype=bool) & (f0 > 0)
+    return f0.astype(np.float64), voiced
 
 
 def smooth_pitch(f0, voiced, window=5):
@@ -296,22 +239,18 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
 
     destination = resolve_output_path(source, output_path, format)
 
-    src_rate, src_channels = probe_audio(source)
-    channels = 2 if src_channels >= 2 else 1
-    samples = decode_to_float(source, ANALYSIS_RATE, channels)
-
-    mono = remove_vocals(samples)
-    f0, voiced = track_pitch(mono, ANALYSIS_RATE)
+    vocals, sample_rate = separate_vocals(source)
+    f0, voiced = track_pitch(vocals, sample_rate)
+    if not voiced.any():
+        raise ConversionError(
+            "No sung melody could be detected (the vocal stem may be empty or "
+            "have no clear pitch)."
+        )
     f0 = smooth_pitch(f0, voiced)
     if semitones:
         f0 = snap_to_semitones(f0)
-    if not voiced.any():
-        raise ConversionError(
-            "No melody could be detected (the track may be silent after vocal "
-            "removal, or have no clear pitch)."
-        )
 
-    voice = synthesize_square(f0, voiced, HOP, ANALYSIS_RATE, rate, duty)
+    voice = synthesize_square(f0, voiced, HOP, sample_rate, rate, duty)
     samples_u8 = to_uint8(quantize(voice, bits))
     write_output(destination, samples_u8, rate, 1)
     return destination
