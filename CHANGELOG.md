@@ -7,6 +7,13 @@ All notable changes to this project are documented here. The format follows
 ## Unreleased
 
 ### Changed
+- Core behaviour is now monophonic melody synthesis instead of a raw
+  bitcrusher: the input has its vocals removed (`L − R` centre cancellation),
+  its leading pitch tracked by autocorrelation, and is replayed as a single
+  square-wave voice in the style of old phone ringtones / game consoles
+  (branch `feat/melody-synth`). New `--duty` and `--semitones/--no-semitones`
+  flags; the now-irrelevant `--mono` flag was removed.
+
 - Default output is now `output.<ext>` in the current directory and keeps the
   input's format by default; new `-f/--format` flag overrides the output
   format (e.g. `ogg`), while an explicit `-o` still wins (branch
