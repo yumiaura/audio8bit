@@ -16,10 +16,10 @@ from audio8bit.converter import (
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="audio8bit",
-        description="Turn a song into a monophonic 8-bit melody: strip the "
-                    "vocals, follow the leading pitch and replay it as a single "
-                    "square-wave voice, like an old phone ringtone or game "
-                    "console.",
+        description="Turn a song into a monophonic 8-bit melody: isolate the "
+                    "sung vocal melody (Demucs), follow its pitch and replay it "
+                    "as a single square-wave voice, like an old phone ringtone "
+                    "or game console.",
     )
     parser.add_argument(
         "-i", "--input", required=True,
