@@ -23,7 +23,12 @@ def build_parser():
     )
     parser.add_argument(
         "-o", "--output",
-        help="output path (default: '<input>_8bit.wav' next to the input)",
+        help="output path (default: 'output.<ext>' using the input's format)",
+    )
+    parser.add_argument(
+        "-f", "--format",
+        help="output format/extension, e.g. ogg, mp3, wav "
+             "(default: keep the input's format)",
     )
     parser.add_argument(
         "--bits", type=int, default=DEFAULT_BITS,
@@ -50,6 +55,7 @@ def main(argv=None):
         output = convert(
             args.input,
             output_path=args.output,
+            format=args.format,
             bits=args.bits,
             rate=args.rate,
             mono=args.mono,

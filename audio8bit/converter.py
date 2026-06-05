@@ -135,13 +135,23 @@ def reencode(wav_path, output_path):
         )
 
 
-def default_output_for(input_path):
-    """Return the default output path '<stem>_8bit.wav' next to the input."""
-    source = Path(input_path)
-    return source.with_name(f"{source.stem}_8bit.wav")
+def resolve_output_path(input_path, output_path=None, format=None):
+    """Decide where to write the result.
+
+    Precedence: an explicit ``output_path`` wins; otherwise the base name is
+    always ``output`` and the extension comes from ``format`` when given, or
+    falls back to the input file's own extension (so the original format is
+    preserved by default).
+    """
+    if output_path:
+        return Path(output_path)
+    if format:
+        return Path(f"output.{format.lstrip('.').lower()}")
+    suffix = Path(input_path).suffix or ".wav"
+    return Path(f"output{suffix}")
 
 
-def convert(input_path, output_path=None, bits=DEFAULT_BITS,
+def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
             rate=DEFAULT_RATE, mono=False):
     """Convert an audio file to 8-bit sound and write it to disk.
 
@@ -155,7 +165,7 @@ def convert(input_path, output_path=None, bits=DEFAULT_BITS,
     if rate < 1000:
         raise ConversionError(f"--rate must be at least 1000 Hz, got {rate}")
 
-    destination = Path(output_path) if output_path else default_output_for(source)
+    destination = resolve_output_path(source, output_path, format)
 
     src_rate, src_channels = probe_audio(source)
     channels = 1 if mono else src_channels
