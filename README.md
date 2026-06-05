@@ -17,6 +17,12 @@ sound) — and writes a real 8-bit unsigned PCM WAV.
 pip install audio8bit
 ```
 
+Or run straight from a clone, without installing — only `numpy` is needed:
+
+```bash
+python main.py -i song.mp3 -o song_8bit.wav
+```
+
 ## Usage
 
 ```bash
