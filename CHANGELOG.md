@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+- The output is now a full chiptune arrangement instead of bare beeps: notes
+  are extracted with hysteresis (vibrato/scoops stay inside one note, voicing
+  gaps bridged, octave errors folded, A-B-A ornament flicker absorbed), onsets
+  snap to the song's own beat grid, the melody is shifted into a ringtone
+  register, and the sound is a pulse lead with vibrato and decay envelopes
+  plus a triangle bass on the beats and a tempo-synced echo. Defaults moved
+  to `--rate 22050` and `--duty 0.25`; branch `feat/chiptune-arranger`.
+
+### Added
+- `--transpose N` flag (default +3): plays the melody in a different key,
+  negative values allowed (branch `feat/chiptune-arranger`).
+- Anti-mush quality validation: every conversion ends with a report scoring
+  note density, fragmentation, trills, pitch range, coverage, aliasing and
+  clipping, with a stderr warning when a check fails (branch
+  `feat/chiptune-arranger`).
+
 ### Fixed
 - Synthesis no longer screeches: the raw `sign()` square aliased badly at low
   sample rates. Replaced with discrete note segmentation (snap to semitones,
