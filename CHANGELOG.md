@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+- Local Claude Code project notes in `CLAUDE.md`, kept out of git via
+  `.gitignore` (branch `chore/claude-md`).
+
 ### Changed
 - The output is now a full chiptune arrangement instead of bare beeps: notes
   are extracted with hysteresis (vibrato/scoops stay inside one note, voicing
