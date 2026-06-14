@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 ## Unreleased
 
 ### Added
+- Translated READMEs in `docs/README_<LANG>.md` for 10 languages (Spanish,
+  Portuguese, French, German, Italian, Russian, Chinese, Japanese, Hindi,
+  Korean) with a language navigation bar at the top of every README, matching
+  the `wachawo/checkcrontab` layout (branch `docs/i18n`).
 - Local Claude Code project notes in `CLAUDE.md`, kept out of git via
   `.gitignore` (branch `chore/claude-md`).
 
