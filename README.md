@@ -3,6 +3,8 @@
 Turn a song into an 8-bit chiptune arrangement of its sung melody — the way an
 80s game console would play it — straight from the command line.
 
+**[English](https://github.com/yumiaura/audio8bit/blob/main/README.md)** | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
+
 It removes the words, keeps the tune, and re-arranges it for chip voices:
 
 1. **Vocal isolation** — [Demucs](https://github.com/adefossez/demucs) (a neural
