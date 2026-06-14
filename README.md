@@ -8,12 +8,15 @@ Turn a song into an 8-bit chiptune arrangement of its sung melody — the way an
 It removes the words, keeps the tune, and re-arranges it for chip voices:
 
 1. **Vocal isolation** — [Demucs](https://github.com/adefossez/demucs) (a neural
-   source-separation model) extracts the sung melody on its own.
+   source-separation model) extracts the sung melody on its own, run
+   deterministically so the same input always gives the same result.
 2. **Pitch tracking** — librosa's pYIN follows the fundamental frequency of the
-   isolated voice over time.
+   isolated voice over time, restricted to the singing range so octave-tracking
+   errors stay rare.
 3. **Note extraction** — the pitch track is split into discrete notes with
    hysteresis: vibrato and scoops stay inside one note, voicing gaps are
-   bridged, octave errors folded back, ornament flicker absorbed.
+   bridged, octave errors folded back and outliers collapsed onto the melody
+   line, ornament flicker absorbed.
 4. **Musicalisation** — note onsets snap to the song's own beat grid, the
    melody is shifted into a ringtone register and transposed into a different
    key (`--transpose`, default +3 semitones).
