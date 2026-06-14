@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Fixed
+- The melody is far more recognizable and now reproducible (branch
+  `fix/recognizable-melody`):
+  - Demucs separation is deterministic (`shifts=0` plus a fixed torch seed);
+    previously its random shift-and-average trick changed the melody on every
+    run of the same file.
+  - pYIN is restricted to the singing range (98–880 Hz instead of 65–2093 Hz),
+    which cut octave-tracking errors from ~12% to ~5% on the test track.
+  - A `collapse_octaves` step clamps the few remaining octave outliers to
+    within an octave of the melody centre, halving the pitch span (34 → 16
+    semitones) with only a few percent fidelity cost.
+  - The "sound coverage" quality check no longer flags a sparse melody as mush
+    (a song with long instrumental stretches is legitimately sparse); it only
+    flags a near-empty result or a non-stop drone now.
+
 ### Added
 - Translated READMEs in `docs/README_<LANG>.md` for 10 languages (Spanish,
   Portuguese, French, German, Italian, Russian, Chinese, Japanese, Hindi,
