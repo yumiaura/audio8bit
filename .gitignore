@@ -21,3 +21,6 @@ env/
 *.swp
 .idea/
 .vscode/
+
+# Local AI assistant instructions (not shipped)
+CLAUDE.md
