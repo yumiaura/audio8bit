@@ -14,6 +14,15 @@ All notable changes to this project are documented here. The format follows
   PyPI version, alongside the existing Python/license/theme badges (branch
   `ci/build-badges`).
 
+### Changed
+- Relicensed from MIT to a custom noncommercial license, `audio8bit License
+  0.0.0` (in `LICENSE`): free for noncommercial use, while commercial use
+  requires a separate paid license from the author. The README just states
+  "free for noncommercial use — see LICENSE for details" (the commercial terms
+  live in the license file, not the README); the license badge, the `pyproject`
+  license metadata and all 10 translations were updated to match (branch
+  `chore/noncommercial-license`).
+
 ## 0.0.0 - 2026-06-15
 
 ### Changed

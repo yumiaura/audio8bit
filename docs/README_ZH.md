@@ -3,7 +3,7 @@
 [![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
 ![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
 
@@ -84,6 +84,6 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 2. 检测你所选部分中实际演奏的音符。
 3. 用简单的 8 位“芯片”音色重新演奏这些音符，并保存文件。
 
-## License
+## 许可证
 
-MIT 许可证
+非商业用途免费使用。详情请参见 [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)。

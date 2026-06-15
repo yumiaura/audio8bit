@@ -3,14 +3,14 @@
 [![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
 ![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
 
 Convierte cualquier canción en música de 8 bits, al estilo de los videojuegos,
-directamente desde tu terminal. audio8bit encuentra la melodía de la canción
-(y sus acordes) y la vuelve a tocar con sonidos retro "chiptune", como los de
-una vieja consola de videojuegos.
+directamente desde tu terminal. audio8bit encuentra la melodía de la canción (y
+sus acordes) y la vuelve a tocar con sonidos retro "chiptune", como los de una
+vieja consola de videojuegos.
 
 [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | **[Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md)** | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
@@ -52,11 +52,11 @@ limpio.
 ¿Quieres algo diferente? Estos son los ajustes más comunes:
 
 ```bash
-audio8bit -i song.mp3 -V lead          # solo la melodía principal, sin acordes
-audio8bit -i song.mp3 -s vocals        # sigue la voz
-audio8bit -i song.mp3 -s instrumental  # sigue los instrumentos
-audio8bit -i song.mp3 --transpose 5    # tócala 5 semitonos más alto
-audio8bit -i song.mp3 -f ogg           # guarda como .ogg en vez de .mp3
+audio8bit -i song.mp3 -V lead          # just the main melody, no chords
+audio8bit -i song.mp3 -s vocals        # follow the singing
+audio8bit -i song.mp3 -s instrumental  # follow the instruments
+audio8bit -i song.mp3 --transpose 5    # play it 5 semitones higher
+audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 ```
 
 ## Todas las opciones
@@ -91,4 +91,4 @@ audio8bit -i song.mp3 -f ogg           # guarda como .ogg en vez de .mp3
 
 ## Licencia
 
-MIT
+Gratis para uso no comercial. Consulta [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) para más detalles.
