@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+- `-s/--source {auto,vocals,instrumental}` (default `auto`): the melody can now
+  be taken from the **instrumental lead** (Demucs' `other` stem, drums and bass
+  removed), not only the sung vocal — so purely instrumental tracks work. `auto`
+  picks the vocal when the song actually has one and the instrumental
+  otherwise. Demucs separation now returns all stems and a small loudness test
+  drives the choice (branch `feat/instrumental-source`).
+
 ### Fixed
 - The melody is far more recognizable and now reproducible (branch
   `fix/recognizable-melody`):

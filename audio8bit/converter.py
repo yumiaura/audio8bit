@@ -1,12 +1,14 @@
-"""DSP core: turn a song into a chiptune arrangement of its sung melody.
+"""DSP core: turn a song into a chiptune arrangement of its melody.
 
-The pipeline extracts the sung melody and re-arranges it the way an 80s game
-console would play it:
+The pipeline extracts a single melodic line and re-arranges it the way an 80s
+game console would play it:
 
-* vocal isolation — Demucs (a neural source-separation model) extracts the
-  vocal stem, i.e. the sung melody on its own, dropping the backing;
+* source separation — Demucs (a neural source-separation model) splits the song
+  into stems; the melody is taken from the sung ``vocals`` or, for an
+  instrumental, from the backing lead in the ``other`` stem (drums and bass
+  removed). ``auto`` uses the vocal when the song actually has one;
 * pitch tracking — librosa's pYIN follows the fundamental frequency (f0) of
-  the isolated voice over time;
+  the chosen stem over time, within a band suited to that source;
 * note extraction — the pitch track is split into discrete notes with
   hysteresis (vibrato and scoops stay inside one note), short voicing gaps
   are bridged, octave errors folded back, flicker dropped;
@@ -37,8 +39,26 @@ import numpy as np
 DEMUCS_MODEL = "htdemucs"
 SEPARATION_SEED = 0
 HOP = 512
+
+# Melody source. "vocals" tracks the sung line; "instrumental" tracks the lead
+# of the backing (drums and bass removed, i.e. Demucs' "other" stem); "auto"
+# picks vocals when the song actually has a vocal and the instrumental
+# otherwise. Each source gets its own pitch search band.
+SOURCE_AUTO = "auto"
+SOURCE_VOCALS = "vocals"
+SOURCE_INSTRUMENTAL = "instrumental"
+SOURCE_CHOICES = (SOURCE_AUTO, SOURCE_VOCALS, SOURCE_INSTRUMENTAL)
+DEFAULT_SOURCE = SOURCE_AUTO
+
 PITCH_FMIN = 98.0
 PITCH_FMAX = 880.0
+INSTRUMENT_FMIN = 130.0
+INSTRUMENT_FMAX = 1000.0
+
+# Auto: treat the vocal as present (and pick it over the instrumental) when its
+# loudness is at least this fraction of the instrumental's, and above a floor.
+VOCAL_PRESENCE_RATIO = 0.2
+VOCAL_PRESENCE_FLOOR = 0.01
 
 DEFAULT_RATE = 22050
 DEFAULT_BITS = 8
@@ -96,8 +116,12 @@ def midi_to_hz(midi):
     return 440.0 * 2.0 ** ((np.asarray(midi, dtype=np.float64) - 69.0) / 12.0)
 
 
-def separate_vocals(path):
-    """Isolate the vocal stem with Demucs and return (mono_signal, sample_rate)."""
+def separate_sources(path):
+    """Split a song into its Demucs stems.
+
+    Returns ``(stems, sample_rate)`` where ``stems`` maps each source name
+    (``drums``, ``bass``, ``other``, ``vocals``) to a mono float32 signal.
+    """
     try:
         import torch
         from demucs.apply import apply_model
@@ -111,10 +135,6 @@ def separate_vocals(path):
 
     model = get_model(DEMUCS_MODEL)
     model.cpu().eval()
-    if "vocals" not in model.sources:
-        raise ConversionError(
-            f"Demucs model has no 'vocals' stem (got: {', '.join(model.sources)})."
-        )
 
     wav = AudioFile(str(path)).read(
         streams=0, samplerate=model.samplerate, channels=model.audio_channels,
@@ -122,7 +142,7 @@ def separate_vocals(path):
     reference = wav.mean(0)
     wav = (wav - reference.mean()) / (reference.std() + 1e-8)
     # shifts=0 disables the random shift-and-average trick so the same input
-    # always yields the same stem; the seed pins any remaining randomness.
+    # always yields the same stems; the seed pins any remaining randomness.
     # Without this the melody (and so the whole output) changes run to run.
     torch.manual_seed(SEPARATION_SEED)
     with torch.no_grad():
@@ -131,8 +151,48 @@ def separate_vocals(path):
         )[0]
     sources = sources * reference.std() + reference.mean()
 
-    vocals = sources[model.sources.index("vocals")].mean(0)
-    return vocals.cpu().numpy().astype(np.float32), int(model.samplerate)
+    stems = {
+        name: sources[index].mean(0).cpu().numpy().astype(np.float32)
+        for index, name in enumerate(model.sources)
+    }
+    return stems, int(model.samplerate)
+
+
+def signal_rms(signal):
+    """Root-mean-square level of a signal (its loudness)."""
+    if signal is None or signal.size == 0:
+        return 0.0
+    return float(np.sqrt(np.mean(signal.astype(np.float64) ** 2)))
+
+
+def select_melody(stems, source):
+    """Pick the stem to take the melody from and its pitch search band.
+
+    Returns ``(signal, fmin, fmax, label)``. The vocal stem carries the sung
+    line; the ``other`` stem carries the backing lead (drums and bass gone).
+    ``auto`` uses the vocal only when it is actually present in the mix.
+    """
+    vocals = stems.get("vocals")
+    instrumental = stems.get("other")
+    if instrumental is None:
+        raise ConversionError(
+            "Demucs returned no 'other' stem to take an instrumental melody "
+            f"from (got: {', '.join(stems)})."
+        )
+
+    if source == SOURCE_VOCALS:
+        if vocals is None:
+            raise ConversionError("Demucs returned no 'vocals' stem.")
+        return vocals, PITCH_FMIN, PITCH_FMAX, "vocals"
+    if source == SOURCE_INSTRUMENTAL:
+        return instrumental, INSTRUMENT_FMIN, INSTRUMENT_FMAX, "instrumental"
+
+    vocal_level = signal_rms(vocals)
+    instrumental_level = signal_rms(instrumental)
+    threshold = max(VOCAL_PRESENCE_FLOOR, VOCAL_PRESENCE_RATIO * instrumental_level)
+    if vocal_level >= threshold:
+        return vocals, PITCH_FMIN, PITCH_FMAX, "vocals (auto)"
+    return instrumental, INSTRUMENT_FMIN, INSTRUMENT_FMAX, "instrumental (auto)"
 
 
 def track_pitch(signal, sample_rate, hop=HOP, fmin=PITCH_FMIN, fmax=PITCH_FMAX):
@@ -722,13 +782,17 @@ def extract_notes(f0, voiced, analysis_rate):
 
 
 def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
-            rate=DEFAULT_RATE, duty=DEFAULT_DUTY, transpose=DEFAULT_TRANSPOSE):
+            rate=DEFAULT_RATE, duty=DEFAULT_DUTY, transpose=DEFAULT_TRANSPOSE,
+            source=DEFAULT_SOURCE):
     """Convert a song into a chiptune melody arrangement and write it to disk.
+
+    ``source`` chooses which line to follow: the sung ``vocals``, the backing
+    ``instrumental`` lead, or ``auto`` (vocals when the song has them).
 
     Returns (destination_path, quality_ok, quality_report_lines).
     """
-    source = Path(input_path)
-    if not source.is_file():
+    origin = Path(input_path)
+    if not origin.is_file():
         raise ConversionError(f"Input file not found: '{input_path}'")
     if not 1 <= bits <= 8:
         raise ConversionError(f"--bits must be between 1 and 8, got {bits}")
@@ -740,15 +804,20 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         raise ConversionError(
             f"--transpose must be between -24 and 24 semitones, got {transpose}"
         )
+    if source not in SOURCE_CHOICES:
+        raise ConversionError(
+            f"--source must be one of {', '.join(SOURCE_CHOICES)}, got '{source}'"
+        )
 
-    destination = resolve_output_path(source, output_path, format)
+    destination = resolve_output_path(origin, output_path, format)
 
-    vocals, sample_rate = separate_vocals(source)
-    f0, voiced = track_pitch(vocals, sample_rate)
+    stems, sample_rate = separate_sources(origin)
+    signal, fmin, fmax, picked = select_melody(stems, source)
+    f0, voiced = track_pitch(signal, sample_rate, fmin=fmin, fmax=fmax)
     if not voiced.any():
         raise ConversionError(
-            "No sung melody could be detected (the vocal stem may be empty or "
-            "have no clear pitch)."
+            f"No melody could be detected in the {picked} (it may be empty or "
+            "have no clear pitch). Try --source vocals or --source instrumental."
         )
     f0 = smooth_pitch(f0, voiced, window=5)
 
@@ -759,7 +828,7 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
             "longer track)."
         )
 
-    mix = decode_mix(source, DEFAULT_RATE)
+    mix = decode_mix(origin, DEFAULT_RATE)
     tempo, beat_times = track_beats(mix, DEFAULT_RATE)
 
     notes = quantize_notes(notes, tempo, beat_times)
@@ -771,4 +840,4 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
     write_output(destination, samples_u8, rate, 1)
 
     quality_ok, report = validate_melody(notes, samples_u8, rate)
-    return destination, quality_ok, report
+    return destination, quality_ok, [f"melody source: {picked}"] + report
