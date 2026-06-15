@@ -8,7 +8,9 @@ from audio8bit.converter import (
     DEFAULT_BITS,
     DEFAULT_DUTY,
     DEFAULT_RATE,
+    DEFAULT_SOURCE,
     DEFAULT_TRANSPOSE,
+    SOURCE_CHOICES,
     ConversionError,
     convert,
 )
@@ -17,11 +19,11 @@ from audio8bit.converter import (
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="audio8bit",
-        description="Turn a song into an 8-bit chiptune arrangement: isolate "
-                    "the sung melody (Demucs), extract its notes, snap them to "
-                    "the song's beat, transpose into a new key and replay them "
-                    "with a pulse lead, triangle bass and echo — like an 80s "
-                    "game console.",
+        description="Turn a song into an 8-bit chiptune arrangement: take a "
+                    "melody (the sung vocal or the instrumental lead) with "
+                    "Demucs, extract its notes, snap them to the song's beat, "
+                    "transpose into a new key and replay them with a pulse "
+                    "lead, triangle bass and echo — like an 80s game console.",
     )
     parser.add_argument(
         "-i", "--input", required=True,
@@ -35,6 +37,12 @@ def build_parser():
         "-f", "--format",
         help="output format/extension, e.g. ogg, mp3, wav "
              "(default: keep the input's format)",
+    )
+    parser.add_argument(
+        "-s", "--source", choices=SOURCE_CHOICES, default=DEFAULT_SOURCE,
+        help="which melody to follow: 'vocals' (the sung line), "
+             "'instrumental' (the backing lead, drums and bass removed), or "
+             f"'auto' (default: {DEFAULT_SOURCE})",
     )
     parser.add_argument(
         "--transpose", type=int, default=DEFAULT_TRANSPOSE,
@@ -71,6 +79,7 @@ def main(argv=None):
             rate=args.rate,
             duty=args.duty,
             transpose=args.transpose,
+            source=args.source,
         )
     except ConversionError as error:
         print(f"audio8bit: {error}", file=sys.stderr)
