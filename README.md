@@ -30,7 +30,9 @@ It keeps the tune and re-arranges it for chip voices:
 4. **Chip synthesis** — each note is a band-limited pulse voice (the `lead` and
    `pitch` paths add vibrato/decay, and `pitch` adds a triangle bass and a
    tempo-synced echo); alias-free by construction (only harmonics below Nyquist
-   are summed).
+   are summed). `chords` scales each voice by its transcribed loudness for
+   dynamics and levels the mix with a smooth limiter, so dense chords don't bury
+   the single notes.
 5. **8-bit output + quality report** — quantised to 8-bit PCM, written as WAV
    or re-encoded to your chosen format, then scored: melodic "mush" heuristics
    for a single line, or audio-level checks (silence, aliasing, clipping) for
