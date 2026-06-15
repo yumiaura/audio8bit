@@ -3,7 +3,7 @@
 [![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
 ![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
 
@@ -89,6 +89,6 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 2. Détecte les vraies notes jouées dans la partie que vous avez choisie.
 3. Rejoue ces notes avec de simples sons « chip » 8 bits et enregistre le fichier.
 
-## License
+## Licence
 
-Licence MIT
+Gratuit pour un usage non commercial. Voir [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) pour les détails.
