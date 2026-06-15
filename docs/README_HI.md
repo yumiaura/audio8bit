@@ -3,7 +3,7 @@
 [![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
 ![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
 
@@ -11,7 +11,7 @@
 audio8bit गाने की धुन (और उसके कॉर्ड) ढूँढ़ता है और उन्हें पुराने ज़माने की
 "chiptune" आवाज़ों के साथ फिर से बजाता है, जैसे कोई पुराना गेम कंसोल।
 
-**[हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md)** | [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
+[English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | **[हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md)** | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
 ## यह क्या करता है
 
@@ -85,6 +85,6 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 2. आपके चुने हुए हिस्से में असल में बज रहे नोट्स का पता लगाता है।
 3. उन नोट्स को सरल 8‑बिट "chip" आवाज़ों के साथ फिर से बजाता है और फ़ाइल सहेज देता है।
 
-## License
+## लाइसेंस
 
-MIT लाइसेंस
+ग़ैर-व्यावसायिक उपयोग के लिए मुफ़्त। विवरण के लिए [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) देखें।
