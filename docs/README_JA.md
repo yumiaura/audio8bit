@@ -1,62 +1,87 @@
 # audio8bit
 
-楽曲を8ビットのチップチューン・アレンジに変換します。歌われたボーカル**または**ハーモニー付きの伴奏を、80年代のゲーム機が鳴らすようなサウンドで、コマンドラインから直接生成できます。
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
+![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
+![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
+
+どんな曲でも、ターミナルから 8 ビットのゲーム風音楽に変えられます。
+audio8bit は曲のメロディー（とコード）を見つけ出し、昔のゲーム機のような
+レトロな「チップチューン」サウンドで再生します。
 
 [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | **[日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md)** | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
-メロディを保ちつつ、チップ音源向けに再アレンジします。
+## できること
 
-1. **音源分離** — [Demucs](https://github.com/adefossez/demucs)（ニューラル音源分離モデル）が楽曲をステムに分割します。決定論的に実行されるため、同じ入力からは常に同じ結果が得られます。メロディは歌われた**ボーカル**から、またはインストゥルメンタルの場合は伴奏の**リード**（ドラムとベースを除去したもの）から取得します。`--source auto` は、楽曲に実際にボーカルがある場合はボーカルを、そうでない場合はインストゥルメンタルを使用します。
-2. **音符検出**（`--method`、デフォルトは `transcribe`）— ポリフォニックな採譜モデル（[basic-pitch](https://github.com/spotify/basic-pitch)）がステムを実際の音符に変換します。`--voices chords`（デフォルト）はすべての音符を鳴らすため、ハーモニーとベースが保たれます。`--voices lead` はコードを通して単一のメロディラインを追います（単純に最高音を拾うとリードと伴奏の間を飛び移ってしまいますが、ここではそうではなくViterbi経路を使います）。これによりコードやインストゥルメンタルでもまとまりが保たれます。フレームごとのピッチ追跡では声部間を飛び移ってランダムに聞こえてしまうのです。`--method pitch` はその代わりに、楽曲のビートグリッドにスナップさせたlibrosaのpYINを使います（モノフォニックで軽量、TensorFlow不要）。
-3. **音楽化** — 任意の `--transpose` でキーを変更できます。`lead` は着信音のような音域へオクターブ移動されます。`chords` は採譜されたピッチをそのまま保つため、ハーモニーが損なわれません。採譜された音符はグリッドにスナップされず、それぞれ本来の自然なタイミングを保ちます。
-4. **チップ合成** — 各音符は帯域制限されたパルス音源です（`lead` と `pitch` の経路にはビブラートとディケイが加わり、`pitch` にはさらに三角波のベースとテンポ同期のエコーが加わります）。構造上エイリアスが生じません（Nyquist周波数未満の倍音のみを加算するため）。`chords` はダイナミクスのために各音源を採譜されたラウドネスに応じてスケーリングし、滑らかなリミッターでミックスをレベリングします。これにより密なコードが単音を埋もれさせることがありません。
-5. **8ビット出力＋品質レポート** — 8ビットPCMに量子化し、WAVとして書き出すか、選択した形式に再エンコードした上で採点します。単一ラインに対してはメロディの「ぐちゃぐちゃ感」を測るヒューリスティクスを、コードに対してはオーディオレベルのチェック（無音、エイリアシング、クリッピング）を行います。これにより、悪い結果が耳で気づかれる前に客観的に検出されます。
+- 曲を渡すと、そのチップチューン版が返ってきます。
+- 曲に**歌**が入っていても、**インストゥルメンタル**でも動作します。メロディーは
+  自動で選び取ります。
+- すべてあなたのパソコン上で動作し、何もアップロードされません。
 
-> **ご注意:** デフォルトの `transcribe` メソッドは basic-pitch（TensorFlow）を、Demucs は PyTorch を必要とします。いずれも大規模なインストールであり、Demucs は初回実行時にモデル（約80MB）をダウンロードします。分離と採譜には、CPUで1トラックあたり数分かかります。これがメロディを実際に聞き取れるものにしているのです。すべてローカルで実行されます。
+## 始める前に
 
-## Requirements
+次の 2 つが必要です。
 
-- Python 3.9+
-- `PATH` 上の [ffmpeg](https://ffmpeg.org/)（`ffmpeg` と `ffprobe` を同梱）
+- **Python 3.9 以降**
+- **ffmpeg** — 音声の読み書きに使える無料ツールです。`sudo apt install ffmpeg`
+  （Linux）または `brew install ffmpeg`（macOS）でインストールしてください。
 
-## Install
+## インストール
 
 ```bash
 pip install audio8bit
 ```
 
-または、クローンから直接実行します（まず依存関係をインストールしてください: `pip install numpy demucs librosa basic-pitch`）:
+> **初回の実行は遅いです。** 小さな AI モデル（約 80 MB）をダウンロードするため、
+> 数分かかることがあります。これは正常な動作で、2 回目以降は速くなります。
+
+## 使い方
 
 ```bash
-python main.py -i song.mp3
+audio8bit -i song.mp3
 ```
 
-## Usage
+これでカレントフォルダーに `output.mp3` が作られます。それだけです。実行ごとに
+短い品質レポートも表示されるので、結果がきれいに仕上がったか確認できます。
+
+別の仕上がりにしたいですか？ よく使う調整は次のとおりです。
 
 ```bash
-audio8bit -i song.mp3                      # -> output.mp3, full chords (keeps the input format)
-audio8bit -i song.mp3 -V lead              # a single melody line instead of chords
-audio8bit -i track.mp3 -s instrumental     # follow the instrumental, not vocals
-audio8bit -i song.mp3 -m pitch             # lighter pYIN method (no TensorFlow)
-audio8bit -i song.mp3 -f ogg               # -> output.ogg
-audio8bit -i song.mp3 --transpose 5        # 5 semitones up
-audio8bit -i song.mp3 --duty 0.5 --rate 11025
+audio8bit -i song.mp3 -V lead          # メインメロディーだけ、コードなし
+audio8bit -i song.mp3 -s vocals        # 歌に合わせる
+audio8bit -i song.mp3 -s instrumental  # 楽器に合わせる
+audio8bit -i song.mp3 --transpose 5    # 5 半音高く演奏する
+audio8bit -i song.mp3 -f ogg           # .mp3 ではなく .ogg で保存する
 ```
 
-| Flag             | Default          | Description                                  |
-| ---------------- | ---------------- | -------------------------------------------- |
-| `-i, --input`    | — (required)     | 入力音声（ffmpeg が読み込める任意の形式）     |
-| `-o, --output`   | `output.<ext>`   | 出力パス（`-f` を上書き）                     |
-| `-f, --format`   | input's format   | 出力形式/拡張子、例: `ogg`                    |
-| `-s, --source`   | `auto`           | 追うメロディ: `vocals`、`instrumental`、`auto` |
-| `-m, --method`   | `transcribe`     | 音符検出: `transcribe`（ポリフォニック）または `pitch`（pYIN） |
-| `-V, --voices`   | `chords`         | transcribe の出力: `chords`（ハーモニー）または `lead`（単一ライン） |
-| `--transpose`    | `0`              | 半音単位のキーシフト（負の値も可）           |
-| `--bits`         | `8`              | 量子化するビット深度（1〜8）                  |
-| `--rate`         | `22050`          | 出力サンプルレート（Hz）                      |
-| `--duty`         | `0.25`           | パルス波のデューティ比（0〜1）                |
+## すべてのオプション
 
-終了コード: `0` 成功、`1` 変換エラー、`2` 引数エラー。実行のたびに品質レポートが出力され、チェックに失敗した項目は stderr に警告を表示します。
+| Option           | Default          | 働き                                          |
+| ---------------- | ---------------- | --------------------------------------------- |
+| `-i, --input`    | required         | 変換する曲（mp3, wav, flac, …）               |
+| `-o, --output`   | `output.<type>`  | 結果の保存先                                  |
+| `-f, --format`   | same as input    | 別の形式で保存する。例: `ogg`、`wav`          |
+| `-s, --source`   | `auto`           | メロディーを取り出す場所: `vocals`、`instrumental`、または `auto` |
+| `-m, --method`   | `transcribe`     | 音符の見つけ方: `transcribe`（最良）または `pitch`（高速・軽量） |
+| `-V, --voices`   | `chords`         | `chords`（ハーモニーあり）または `lead`（メロディー 1 本のみ） |
+| `--transpose`    | `0`              | キーを半音単位でずらす（例: `5` で上、`-5` で下） |
+| `--bits`         | `8`              | 音の解像度、1〜8（小さいほど荒い音に）        |
+| `--rate`         | `22050`          | サンプルレート（Hz、低いほどレトロに）        |
+| `--duty`         | `0.25`           | パルス波の音色、0〜1                          |
+
+## うまくいかないとき
+
+- **「ffmpeg not found」** — ffmpeg をインストールしてください（*始める前に* を参照）。
+- **初回の実行が止まっているように見える** — AI モデルをダウンロード中です。数分
+  待ってください。これは一度だけ起こります。
+- **元の曲のように聞こえない** — `-s vocals` または `-s instrumental` で正しい
+  パートを選ぶか、メロディーだけにしたい場合は `-V lead` を試してください。
+
+## しくみ（読みたい人向け）
+
+1. 曲をパート（ボーカル、ドラム、ベース、その他）に分けます。
+2. 選んだパートで実際に演奏されている音符を検出します。
+3. それらの音符をシンプルな 8 ビットの「チップ」サウンドで再生し、ファイルに保存します。
 
 ## License
 
