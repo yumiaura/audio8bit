@@ -1,12 +1,5 @@
 # audio8bit
 
-[![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
-![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
-![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
-![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
-
 어떤 노래든 8비트 비디오 게임 스타일의 음악으로 바꿔보세요 — 바로 터미널에서요.
 audio8bit는 노래의 멜로디(그리고 코드)를 찾아내어, 옛날 게임기처럼 레트로한
 "칩튠(chiptune)" 사운드로 다시 연주합니다.
@@ -89,4 +82,4 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 
 ## 라이선스
 
-비상업적 용도로는 무료입니다. 자세한 내용은 [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)를 참고하세요.
+이 프로젝트는 PolyForm Noncommercial License를 따릅니다 — 자세한 내용은 [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) 파일을 참조하세요.

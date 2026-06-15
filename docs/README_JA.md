@@ -1,12 +1,5 @@
 # audio8bit
 
-[![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
-![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
-![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
-![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
-
 どんな曲でも、ターミナルから 8 ビットのゲーム風音楽に変えられます。
 audio8bit は曲のメロディー（とコード）を見つけ出し、昔のゲーム機のような
 レトロな「チップチューン」サウンドで再生します。
@@ -87,4 +80,4 @@ audio8bit -i song.mp3 -f ogg           # .mp3 ではなく .ogg で保存する
 
 ## ライセンス
 
-非商用利用は無料です。詳細は [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) を参照してください。
+本プロジェクトは PolyForm Noncommercial License の下でライセンスされています — 詳細は [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) ファイルを参照してください。
