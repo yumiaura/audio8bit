@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Added
+- CI workflow `.github/workflows/ci.yml`: builds the package and smoke-tests the
+  CLI on every push to `main` and on pull requests, so the build-status badge is
+  meaningful (branch `ci/build-badges`).
+- Live status badges in the README (and all translations): CI build status and
+  PyPI version, alongside the existing Python/license/theme badges (branch
+  `ci/build-badges`).
+
 ## 0.0.0 - 2026-06-15
 
 ### Changed

@@ -1,7 +1,9 @@
 # audio8bit
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+[![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
 ![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
 
