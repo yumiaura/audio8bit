@@ -14,6 +14,9 @@ env/
 
 # Test artifacts / generated audio
 *_8bit.wav
+/input.*
+/output.*
+/diag_*.mp3
 /tmp/
 
 # OS / editor
