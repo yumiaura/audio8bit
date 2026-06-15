@@ -1,57 +1,30 @@
 # audio8bit
 
-Transforme uma música em um arranjo chiptune de 8 bits — o vocal cantado **ou**
-o instrumental, com sua harmonia — do jeito que um console de videogame dos anos
-80 a tocaria, direto da linha de comando.
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
+![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
+![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
+
+Transforme qualquer música em som 8 bits, no estilo de videogame — direto do
+seu terminal. O audio8bit encontra a melodia da música (e seus acordes) e a
+reproduz com sons retrô de "chiptune", como um antigo console de jogos.
 
 [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | **[Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md)** | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
-Ele mantém a melodia e a rearranja para vozes de chip:
+## O que ele faz
 
-1. **Separação de fontes** — o [Demucs](https://github.com/adefossez/demucs) (um
-   modelo neural de separação de fontes) divide a música em faixas (stems),
-   executado de forma determinística para que a mesma entrada sempre produza o
-   mesmo resultado. A melodia é extraída dos **vocais** cantados ou, no caso de
-   um instrumental, da **lead** de acompanhamento (com bateria e baixo
-   removidos); `--source auto` usa o vocal quando a música realmente tem um e o
-   instrumental caso contrário.
-2. **Detecção de notas** (`--method`, padrão `transcribe`) — um modelo de
-   transcrição polifônica ([basic-pitch](https://github.com/spotify/basic-pitch))
-   transforma o stem em notas reais. `--voices chords` (padrão) toca todas as
-   notas, mantendo a harmonia e o baixo; `--voices lead` segue uma única linha
-   melódica através dos acordes (um caminho de Viterbi, e não a ingênua linha
-   superior que pula entre a lead e o acompanhamento). Isso se mantém coeso em
-   acordes e instrumentais, onde o rastreamento de tom quadro a quadro
-   simplesmente pula entre as vozes e soa aleatório. `--method pitch` usa, em vez
-   disso, o pYIN do librosa alinhado à grade de batidas da música (monofônico,
-   mais leve, sem TensorFlow).
-3. **Musicalização** — um `--transpose` opcional muda a tonalidade. A `lead` é
-   deslocada em oitavas para um registro de toque de celular; `chords` mantém os
-   tons transcritos para que a harmonia permaneça intacta. As notas transcritas
-   mantêm seu próprio tempo natural em vez de serem alinhadas a uma grade.
-4. **Síntese de chip** — cada nota é uma voz de pulso com banda limitada (os
-   caminhos `lead` e `pitch` adicionam vibrato/decaimento, e o `pitch` adiciona
-   um baixo de onda triangular e um eco sincronizado ao andamento); livre de
-   aliasing por construção (apenas os harmônicos abaixo de Nyquist são somados).
-   `chords` escalona cada voz pela sua intensidade transcrita para obter dinâmica
-   e nivela a mixagem com um limitador suave, de modo que acordes densos não
-   soterrem as notas isoladas.
-5. **Saída de 8 bits + relatório de qualidade** — quantizada para PCM de 8 bits,
-   gravada como WAV ou recodificada para o formato de sua escolha, depois
-   avaliada: heurísticas de "papa" melódica para uma única linha, ou verificações
-   em nível de áudio (silêncio, aliasing, clipping) para acordes — de modo que um
-   resultado ruim seja sinalizado objetivamente em vez de descoberto de ouvido.
+- Dê uma música e receba de volta uma versão chiptune dela.
+- Funciona tanto se a música tiver **canto** quanto se for **instrumental** —
+  ele escolhe a melodia automaticamente.
+- Tudo roda no seu próprio computador; nada é enviado para a internet.
 
-> **Atenção:** o método padrão `transcribe` traz o basic-pitch (TensorFlow) e o
-> Demucs traz o PyTorch — ambas instalações grandes — e o Demucs baixa seu
-> modelo (~80 MB) na primeira execução. A separação mais a transcrição levam
-> alguns minutos por faixa na CPU. É isso que torna a melodia de fato
-> reconhecível. Tudo roda localmente.
+## Antes de começar
 
-## Requisitos
+Você precisa de duas coisas:
 
-- Python 3.9+
-- [ffmpeg](https://ffmpeg.org/) (inclui `ffmpeg` e `ffprobe`) no seu `PATH`
+- **Python 3.9 ou mais recente**
+- **ffmpeg** — uma ferramenta gratuita para ler e gravar áudio. Instale com
+  `sudo apt install ffmpeg` (Linux) ou `brew install ffmpeg` (macOS).
 
 ## Instalação
 
@@ -59,41 +32,59 @@ Ele mantém a melodia e a rearranja para vozes de chip:
 pip install audio8bit
 ```
 
-Ou execute diretamente a partir de um clone (instale as dependências primeiro: `pip install numpy demucs librosa basic-pitch`):
+> **A primeira execução é lenta:** ela baixa um pequeno modelo de IA (cerca de
+> 80 MB) e pode levar alguns minutos. Isso é normal — as execuções seguintes
+> são mais rápidas.
+
+## Como usar
 
 ```bash
-python main.py -i song.mp3
+audio8bit -i song.mp3
 ```
 
-## Uso
+Isso cria `output.mp3` na pasta atual. É só isso. Cada execução também
+imprime um breve relatório de qualidade para que você veja que o resultado
+saiu limpo.
+
+Quer algo diferente? Aqui estão os ajustes mais comuns:
 
 ```bash
-audio8bit -i song.mp3                      # -> output.mp3, acordes completos (mantém o formato de entrada)
-audio8bit -i song.mp3 -V lead              # uma única linha melódica em vez de acordes
-audio8bit -i track.mp3 -s instrumental     # segue o instrumental, não os vocais
-audio8bit -i song.mp3 -m pitch             # método pYIN mais leve (sem TensorFlow)
-audio8bit -i song.mp3 -f ogg               # -> output.ogg
-audio8bit -i song.mp3 --transpose 5        # 5 semitons acima
-audio8bit -i song.mp3 --duty 0.5 --rate 11025
+audio8bit -i song.mp3 -V lead          # apenas a melodia principal, sem acordes
+audio8bit -i song.mp3 -s vocals        # seguir o canto
+audio8bit -i song.mp3 -s instrumental  # seguir os instrumentos
+audio8bit -i song.mp3 --transpose 5    # tocar 5 semitons mais agudo
+audio8bit -i song.mp3 -f ogg           # salvar como .ogg em vez de .mp3
 ```
 
-| Flag             | Default          | Descrição                                    |
-| ---------------- | ---------------- | -------------------------------------------- |
-| `-i, --input`    | — (obrigatório)  | Áudio de entrada (qualquer formato que o ffmpeg leia) |
-| `-o, --output`   | `output.<ext>`   | Caminho de saída (sobrepõe `-f`)             |
-| `-f, --format`   | formato da entrada | Formato/extensão de saída, ex.: `ogg`      |
-| `-s, --source`   | `auto`           | Melodia a seguir: `vocals`, `instrumental`, `auto` |
-| `-m, --method`   | `transcribe`     | Detecção de notas: `transcribe` (polifônico) ou `pitch` (pYIN) |
-| `-V, --voices`   | `chords`         | Saída do transcribe: `chords` (harmonia) ou `lead` (uma linha) |
-| `--transpose`    | `0`              | Mudança de tonalidade em semitons (negativos permitidos) |
-| `--bits`         | `8`              | Profundidade de bits para quantizar (1–8)    |
-| `--rate`         | `22050`          | Taxa de amostragem de saída em Hz            |
-| `--duty`         | `0.25`           | Ciclo de trabalho da onda de pulso (0–1)     |
+## Todas as opções
 
-Códigos de saída: `0` sucesso, `1` erro de conversão, `2` argumentos inválidos.
-Toda execução termina com um relatório de qualidade; verificações que falham
-imprimem um aviso no stderr.
+| Option           | Default          | O que faz                                     |
+| ---------------- | ---------------- | --------------------------------------------- |
+| `-i, --input`    | required         | A música a converter (mp3, wav, flac, …)      |
+| `-o, --output`   | `output.<type>`  | Onde salvar o resultado                       |
+| `-f, --format`   | same as input    | Salvar em outro tipo, ex.: `ogg`, `wav`       |
+| `-s, --source`   | `auto`           | De onde tirar a melodia: `vocals`, `instrumental` ou `auto` |
+| `-m, --method`   | `transcribe`     | Como as notas são encontradas: `transcribe` (melhor) ou `pitch` (mais rápido, mais leve) |
+| `-V, --voices`   | `chords`         | `chords` (com harmonia) ou `lead` (uma única linha de melodia) |
+| `--transpose`    | `0`              | Muda o tom, em semitons (ex.: `5` para cima, `-5` para baixo) |
+| `--bits`         | `8`              | Resolução do som, 1–8 (menor = mais áspero)   |
+| `--rate`         | `22050`          | Taxa de amostragem em Hz (menor = mais retrô) |
+| `--duty`         | `0.25`           | Timbre da onda quadrada (pulse wave), 0–1     |
 
-## License
+## Se algo der errado
 
-Licença MIT
+- **"ffmpeg not found"** — instale o ffmpeg (veja *Antes de começar*).
+- **A primeira execução parece travada** — ela está baixando o modelo de IA;
+  dê alguns minutos. Isso só acontece uma vez.
+- **Não soa como a música** — tente `-s vocals` ou `-s instrumental` para
+  escolher a parte certa, ou `-V lead` para apenas a melodia.
+
+## Como funciona (leitura opcional)
+
+1. Divide a música em partes (vocais, bateria, baixo e o restante).
+2. Detecta as notas que estão realmente sendo tocadas na parte que você escolheu.
+3. Reproduz essas notas com sons "chip" simples de 8 bits e salva o arquivo.
+
+## Licença
+
+MIT
