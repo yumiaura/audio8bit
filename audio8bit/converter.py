@@ -7,14 +7,16 @@ game console would play it:
   into stems; the melody is taken from the sung ``vocals`` or, for an
   instrumental, from the backing lead in the ``other`` stem (drums and bass
   removed). ``auto`` uses the vocal when the song actually has one;
-* pitch tracking — librosa's pYIN follows the fundamental frequency (f0) of
-  the chosen stem over time, within a band suited to that source;
-* note extraction — the pitch track is split into discrete notes with
-  hysteresis (vibrato and scoops stay inside one note), short voicing gaps
-  are bridged, octave errors folded back, flicker dropped;
-* musicalisation — note onsets snap to the song's own beat grid (tracked on
-  the original mix), the melody is shifted into a ringtone register and
-  transposed into a different key;
+* note finding — by default a polyphonic transcription model (basic-pitch)
+  turns the stem into real notes, and one melody is followed through them with a
+  Viterbi path that favours the loudest line while staying smooth (instead of
+  the naive top line, which jumps between lead and accompaniment); this holds
+  together on chords and instrumentals where frame-by-frame pitch tracking just
+  jumps between voices. ``--method pitch`` instead uses librosa's pYIN and snaps
+  the result to the song's beat grid (lighter, no TensorFlow);
+* musicalisation — the melody is shifted into a ringtone register and
+  transposed; the transcription path keeps the notes' own natural timing
+  rather than quantising onto a grid;
 * chip synthesis — a band-limited pulse lead with vibrato and decay
   envelopes, a triangle bass an octave below on the beats, and a tempo-synced
   echo, all alias-free by construction;
@@ -54,6 +56,31 @@ PITCH_FMIN = 98.0
 PITCH_FMAX = 880.0
 INSTRUMENT_FMIN = 130.0
 INSTRUMENT_FMAX = 1000.0
+
+# Melody-extraction method. "transcribe" runs a polyphonic note-transcription
+# model (basic-pitch) and keeps the top line, which holds up on chord-heavy or
+# instrumental material where frame-by-frame pitch tracking jumps between
+# voices; "pitch" is the lighter pYIN tracker (no TensorFlow) and suits a
+# cleanly monophonic source.
+METHOD_TRANSCRIBE = "transcribe"
+METHOD_PITCH = "pitch"
+METHOD_CHOICES = (METHOD_TRANSCRIBE, METHOD_PITCH)
+DEFAULT_METHOD = METHOD_TRANSCRIBE
+
+MELODY_FRAME = 0.02
+MELODY_MIN_SECONDS = 0.06
+MELODY_MERGE_GAP = 0.05
+# Melody is searched in a band around the duration-and-loudness-weighted median
+# pitch, so bass and high pads do not pull the line away.
+MELODY_REGISTER_LOW = 9
+MELODY_REGISTER_HIGH = 15
+# Picking the loudest note each instant ("skyline") jumps between the lead and
+# whatever chord tone is on top. Instead a Viterbi path trades note loudness
+# against pitch distance, so the line stays smooth; a rest state lets it drop
+# out when nothing in the band is loud enough.
+MELODY_SMOOTHING = 0.5
+MELODY_REST_LEVEL = 0.3
+MELODY_REST_SWITCH = 2.0
 
 # Auto: treat the vocal as present (and pick it over the instrumental) when its
 # loudness is at least this fraction of the instrumental's, and above a floor.
@@ -193,6 +220,189 @@ def select_melody(stems, source):
     if vocal_level >= threshold:
         return vocals, PITCH_FMIN, PITCH_FMAX, "vocals (auto)"
     return instrumental, INSTRUMENT_FMIN, INSTRUMENT_FMAX, "instrumental (auto)"
+
+
+def write_wav16(path, signal, sample_rate):
+    """Write a mono float signal as a 16-bit signed PCM WAV (for transcription)."""
+    peak = float(np.max(np.abs(signal))) or 1.0
+    scaled = np.clip(signal / peak * 0.95, -1.0, 1.0)
+    samples = (scaled * 32767.0).astype("<i2")
+    with wave.open(str(path), "wb") as handle:
+        handle.setnchannels(1)
+        handle.setsampwidth(2)
+        handle.setframerate(sample_rate)
+        handle.writeframes(samples.tobytes())
+
+
+def transcribe_notes(signal, sample_rate):
+    """Transcribe a (possibly polyphonic) signal into notes with basic-pitch.
+
+    Returns a list of (start_seconds, end_seconds, midi_pitch, amplitude).
+    Unlike pYIN this is a trained polyphonic model, so it reports real note
+    onsets across overlapping voices instead of one wandering pitch per frame.
+    """
+    try:
+        from basic_pitch.inference import predict
+    except ImportError as missing:
+        raise ConversionError(
+            "basic-pitch is required for note transcription. Install it with "
+            "'pip install basic-pitch', or use --method pitch."
+        ) from missing
+    try:
+        from basic_pitch import ICASSP_2022_MODEL_PATH
+        model = ICASSP_2022_MODEL_PATH
+    except ImportError:
+        model = None
+
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as handle:
+        tmp_wav = Path(handle.name)
+    try:
+        write_wav16(tmp_wav, signal, sample_rate)
+        result = predict(str(tmp_wav), model) if model is not None else predict(str(tmp_wav))
+    finally:
+        tmp_wav.unlink(missing_ok=True)
+
+    note_events = result[2]
+    return [
+        (float(event[0]), float(event[1]), int(event[2]), float(event[3]))
+        for event in note_events
+    ]
+
+
+def melody_register(events):
+    """Pitch band the melody is searched in, around its weighted-median pitch."""
+    pitches = np.array([pitch for start, end, pitch, amplitude in events])
+    weights = np.array([
+        max(1, int((end - start) * amplitude * 100))
+        for start, end, pitch, amplitude in events
+    ])
+    center = float(np.median(np.repeat(pitches, weights)))
+    return center - MELODY_REGISTER_LOW, center + MELODY_REGISTER_HIGH
+
+
+def frame_candidates(events, frames, frame, low, high):
+    """For each time frame, the in-band notes sounding then as {pitch: loudness}."""
+    candidates = [{} for _ in range(frames)]
+    for start, end, pitch, amplitude in events:
+        if not low <= pitch <= high:
+            continue
+        first = max(0, int(start / frame))
+        last = min(frames - 1, int(end / frame))
+        for index in range(first, last + 1):
+            slot = candidates[index]
+            if amplitude > slot.get(pitch, 0.0):
+                slot[pitch] = amplitude
+    return candidates
+
+
+def melody_path(candidates, smoothing=MELODY_SMOOTHING, rest_level=MELODY_REST_LEVEL,
+                rest_switch=MELODY_REST_SWITCH):
+    """Viterbi: the smoothest loud line through the candidates, with rests.
+
+    Each frame's state is one of its candidate pitches or a rest. Reward is the
+    note's loudness; the transition cost is ``smoothing`` per semitone moved, so
+    the path prefers staying near the previous pitch over jumping to a louder
+    but distant chord tone. Returns one pitch (or None) per frame.
+    """
+    rest = None
+    states = [list(slot.items()) + [(rest, rest_level)] for slot in candidates]
+    scores = [reward for pitch, reward in states[0]]
+    back = [[None] * len(states[0])]
+    for index in range(1, len(states)):
+        previous = states[index - 1]
+        row_scores = []
+        row_back = []
+        for pitch, reward in states[index]:
+            best_value = None
+            best_prev = 0
+            for prev_index, (prev_pitch, prev_reward) in enumerate(previous):
+                if prev_pitch is None or pitch is None:
+                    cost = 0.0 if prev_pitch == pitch else rest_switch
+                else:
+                    cost = abs(prev_pitch - pitch)
+                value = scores[prev_index] - smoothing * cost
+                if best_value is None or value > best_value:
+                    best_value = value
+                    best_prev = prev_index
+            row_scores.append(reward + best_value)
+            row_back.append(best_prev)
+        scores = row_scores
+        back.append(row_back)
+
+    index = len(states) - 1
+    state = max(range(len(scores)), key=lambda k: scores[k])
+    path = [None] * len(states)
+    while index >= 0:
+        path[index] = states[index][state][0]
+        state = back[index][state]
+        index -= 1
+    return path
+
+
+def melody_line(events, frame=MELODY_FRAME, min_seconds=MELODY_MIN_SECONDS,
+                merge_gap=MELODY_MERGE_GAP):
+    """Extract one monophonic melody from transcribed polyphonic notes.
+
+    Keeps notes in the melodic register, then follows the loudest line that
+    stays smooth (see ``melody_path``) instead of the naive top line, which
+    jumps between the lead and accompaniment and sounds like random keys.
+    Returns [start_seconds, duration_seconds, midi_pitch].
+    """
+    if not events:
+        return []
+    low, high = melody_register(events)
+    end = max(end_time for start, end_time, pitch, amplitude in events)
+    frames = int(end / frame) + 1
+    candidates = frame_candidates(events, frames, frame, low, high)
+    path = melody_path(candidates)
+
+    notes = []
+    index = 0
+    while index < frames:
+        if path[index] is None:
+            index += 1
+            continue
+        run = index
+        while run < frames and path[run] == path[index]:
+            run += 1
+        notes.append([index * frame, (run - index) * frame, float(path[index])])
+        index = run
+
+    merged = []
+    for note in notes:
+        if (merged and abs(merged[-1][2] - note[2]) < 0.5
+                and note[0] - (merged[-1][0] + merged[-1][1]) <= merge_gap):
+            merged[-1][1] = note[0] + note[1] - merged[-1][0]
+        else:
+            merged.append(note)
+    return [note for note in merged if note[1] >= min_seconds]
+
+
+def render_melody(notes, sample_rate, duty=DEFAULT_DUTY):
+    """Render a monophonic note line as a clean chip lead at its natural timing.
+
+    Transcribed notes already carry musical onsets and lengths, so there is no
+    beat grid to snap to — that snapping is what made earlier output robotic.
+    """
+    span = max(start + duration for start, duration, midi in notes)
+    total = int(span * sample_rate) + sample_rate
+    buffer = np.zeros(total, dtype=np.float64)
+    for start, duration, midi in notes:
+        count = int(duration * sample_rate)
+        if count <= 0:
+            continue
+        frequency = float(midi_to_hz(midi))
+        time = np.arange(count) / sample_rate
+        tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
+                                  sample_rate, duty)
+        tone *= chip_envelope(count, sample_rate) * LEAD_GAIN
+        offset = int(start * sample_rate)
+        end = min(offset + count, total)
+        buffer[offset:end] += tone[:end - offset]
+    peak = float(np.max(np.abs(buffer)))
+    if peak > 0:
+        buffer *= 0.9 / peak
+    return buffer.astype(np.float32)
 
 
 def track_pitch(signal, sample_rate, hop=HOP, fmin=PITCH_FMIN, fmax=PITCH_FMAX):
@@ -674,7 +884,7 @@ def validate_melody(notes, samples_u8, sample_rate):
     else:
         jump_share = 0.0
     check("leaps over a fifth", f"{jump_share * 100:.0f}%",
-          jump_share < 0.2, "< 20%")
+          jump_share < 0.3, "< 30%")
 
     span = float(starts[-1] + durations[-1] - starts[0]) if len(notes) else 0.0
     coverage = sounding / span if span else 0.0
@@ -781,13 +991,54 @@ def extract_notes(f0, voiced, analysis_rate):
     return [note for note in notes if note[1] >= MIN_NOTE_SECONDS]
 
 
+def extract_by_pitch(signal, sample_rate, fmin, fmax, picked, transpose, origin):
+    """Old path: pYIN pitch track, then snap the notes onto the song's beat."""
+    f0, voiced = track_pitch(signal, sample_rate, fmin=fmin, fmax=fmax)
+    if not voiced.any():
+        raise ConversionError(
+            f"No melody could be detected in the {picked} (it may be empty or "
+            "have no clear pitch). Try --source vocals or --source instrumental."
+        )
+    f0 = smooth_pitch(f0, voiced, window=5)
+    notes = extract_notes(f0, voiced, sample_rate)
+    if not notes:
+        raise ConversionError(
+            "No stable notes could be detected in the melody (try a clearer or "
+            "longer track)."
+        )
+    mix = decode_mix(origin, DEFAULT_RATE)
+    tempo, beat_times = track_beats(mix, DEFAULT_RATE)
+    notes = quantize_notes(notes, tempo, beat_times)
+    notes = normalize_register(notes, transpose)
+    notes = trim_leading_silence(notes)
+    return notes, tempo
+
+
+def extract_by_transcription(signal, sample_rate, picked, transpose):
+    """New path: transcribe to notes, keep the top line, play it as written."""
+    events = transcribe_notes(signal, sample_rate)
+    if not events:
+        raise ConversionError(
+            f"No notes could be transcribed from the {picked} (try a clearer "
+            "track, or --source instrumental / --source vocals)."
+        )
+    notes = melody_line(events)
+    if not notes:
+        raise ConversionError("No melodic line could be extracted from the notes.")
+    notes = normalize_register(notes, transpose)
+    notes = trim_leading_silence(notes)
+    return notes
+
+
 def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
             rate=DEFAULT_RATE, duty=DEFAULT_DUTY, transpose=DEFAULT_TRANSPOSE,
-            source=DEFAULT_SOURCE):
-    """Convert a song into a chiptune melody arrangement and write it to disk.
+            source=DEFAULT_SOURCE, method=DEFAULT_METHOD):
+    """Convert a song into a chiptune melody and write it to disk.
 
     ``source`` chooses which line to follow: the sung ``vocals``, the backing
-    ``instrumental`` lead, or ``auto`` (vocals when the song has them).
+    ``instrumental`` lead, or ``auto``. ``method`` chooses how the notes are
+    found: ``transcribe`` (polyphonic note model, top line) or ``pitch`` (pYIN
+    tracker snapped to the beat).
 
     Returns (destination_path, quality_ok, quality_report_lines).
     """
@@ -808,36 +1059,28 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         raise ConversionError(
             f"--source must be one of {', '.join(SOURCE_CHOICES)}, got '{source}'"
         )
+    if method not in METHOD_CHOICES:
+        raise ConversionError(
+            f"--method must be one of {', '.join(METHOD_CHOICES)}, got '{method}'"
+        )
 
     destination = resolve_output_path(origin, output_path, format)
 
     stems, sample_rate = separate_sources(origin)
     signal, fmin, fmax, picked = select_melody(stems, source)
-    f0, voiced = track_pitch(signal, sample_rate, fmin=fmin, fmax=fmax)
-    if not voiced.any():
-        raise ConversionError(
-            f"No melody could be detected in the {picked} (it may be empty or "
-            "have no clear pitch). Try --source vocals or --source instrumental."
+
+    if method == METHOD_TRANSCRIBE:
+        notes = extract_by_transcription(signal, sample_rate, picked, transpose)
+        voice = render_melody(notes, rate, duty)
+    else:
+        notes, tempo = extract_by_pitch(
+            signal, sample_rate, fmin, fmax, picked, transpose, origin,
         )
-    f0 = smooth_pitch(f0, voiced, window=5)
+        voice = render_song(notes, rate, duty, tempo)
 
-    notes = extract_notes(f0, voiced, sample_rate)
-    if not notes:
-        raise ConversionError(
-            "No stable notes could be detected in the melody (try a clearer or "
-            "longer track)."
-        )
-
-    mix = decode_mix(origin, DEFAULT_RATE)
-    tempo, beat_times = track_beats(mix, DEFAULT_RATE)
-
-    notes = quantize_notes(notes, tempo, beat_times)
-    notes = normalize_register(notes, transpose)
-    notes = trim_leading_silence(notes)
-
-    voice = render_song(notes, rate, duty, tempo)
     samples_u8 = to_uint8(quantize(voice, bits))
     write_output(destination, samples_u8, rate, 1)
 
     quality_ok, report = validate_melody(notes, samples_u8, rate)
-    return destination, quality_ok, [f"melody source: {picked}"] + report
+    info = [f"melody source: {picked}", f"method: {method}"]
+    return destination, quality_ok, info + report

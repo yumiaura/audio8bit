@@ -14,28 +14,30 @@ It keeps the tune and re-arranges it for chip voices:
    is taken from the sung **vocals** or, for an instrumental, from the backing
    **lead** (drums and bass removed); `--source auto` uses the vocal when the
    song actually has one and the instrumental otherwise.
-2. **Pitch tracking** — librosa's pYIN follows the fundamental frequency of the
-   chosen stem over time, within a band suited to that source so octave-tracking
-   errors stay rare.
-3. **Note extraction** — the pitch track is split into discrete notes with
-   hysteresis: vibrato and scoops stay inside one note, voicing gaps are
-   bridged, octave errors folded back and outliers collapsed onto the melody
-   line, ornament flicker absorbed.
-4. **Musicalisation** — note onsets snap to the song's own beat grid, the
-   melody is shifted into a ringtone register and transposed into a different
-   key (`--transpose`, default +3 semitones).
-5. **Chip synthesis** — a band-limited pulse lead with vibrato and decay
-   envelopes, a triangle bass an octave below on the beats and a tempo-synced
-   echo; alias-free by construction (only harmonics below Nyquist are summed).
-6. **8-bit output + quality report** — quantised to 8-bit PCM, written as WAV
+2. **Note finding** (`--method`, default `transcribe`) — a polyphonic
+   transcription model ([basic-pitch](https://github.com/spotify/basic-pitch))
+   turns the stem into real notes and the top line is kept as the melody. This
+   holds together on chords and instrumentals, where frame-by-frame pitch
+   tracking just jumps between voices and sounds random. `--method pitch`
+   instead uses librosa's pYIN and snaps the notes to the song's beat grid
+   (lighter, no TensorFlow; best for a cleanly monophonic source).
+3. **Musicalisation** — the melody is shifted into a ringtone register and
+   transposed (`--transpose`, default +3 semitones). The `transcribe` path
+   keeps each note's own natural timing; the `pitch` path snaps onsets to the
+   song's beat grid.
+4. **Chip synthesis** — a band-limited pulse lead with a plucky envelope
+   (the `pitch` path adds vibrato, a triangle bass and a tempo-synced echo);
+   alias-free by construction (only harmonics below Nyquist are summed).
+5. **8-bit output + quality report** — quantised to 8-bit PCM, written as WAV
    or re-encoded to your chosen format, then scored against "mush" heuristics
    (note density, fragmentation, trills, range, clipping) so a bad result is
    flagged objectively instead of discovered by ear.
 
-> **Heads up:** Demucs pulls in PyTorch (a large install) and downloads its
-> model (~80 MB) on first run, and separation takes a few minutes per track on
-> CPU. This is what makes the melody actually recognizable. Everything runs
-> locally.
+> **Heads up:** the default `transcribe` method pulls in basic-pitch
+> (TensorFlow) and Demucs pulls in PyTorch — both large installs — and Demucs
+> downloads its model (~80 MB) on first run. Separation plus transcription take
+> a few minutes per track on CPU. This is what makes the melody actually
+> recognizable. Everything runs locally.
 
 ## Requirements
 
@@ -48,7 +50,7 @@ It keeps the tune and re-arranges it for chip voices:
 pip install audio8bit
 ```
 
-Or run straight from a clone (install the deps first: `pip install numpy demucs librosa`):
+Or run straight from a clone (install the deps first: `pip install numpy demucs librosa basic-pitch`):
 
 ```bash
 python main.py -i song.mp3
@@ -59,6 +61,7 @@ python main.py -i song.mp3
 ```bash
 audio8bit -i song.mp3                      # -> output.mp3 (keeps the input format)
 audio8bit -i track.mp3 -s instrumental     # follow the instrumental lead, not vocals
+audio8bit -i song.mp3 -m pitch             # lighter pYIN method (no TensorFlow)
 audio8bit -i song.mp3 -f ogg               # -> output.ogg
 audio8bit -i song.mp3 -o ring.wav          # explicit output path
 audio8bit -i song.mp3 --transpose -5       # darker key, 5 semitones down
@@ -71,6 +74,7 @@ audio8bit -i song.mp3 --duty 0.5 --rate 11025
 | `-o, --output`   | `output.<ext>`   | Output path (overrides `-f`)                 |
 | `-f, --format`   | input's format   | Output format/extension, e.g. `ogg`          |
 | `-s, --source`   | `auto`           | Melody to follow: `vocals`, `instrumental`, `auto` |
+| `-m, --method`   | `transcribe`     | Note finding: `transcribe` (polyphonic) or `pitch` (pYIN) |
 | `--transpose`    | `3`              | Key shift in semitones (negative allowed)    |
 | `--bits`         | `8`              | Bit depth to quantise to (1–8)               |
 | `--rate`         | `22050`          | Output sample rate in Hz                     |
