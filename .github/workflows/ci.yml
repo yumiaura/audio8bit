@@ -1,0 +1,31 @@
+name: CI
+
+# Runs on every push to main and on pull requests. Builds the package and
+# smoke-tests the CLI so the build-status badge reflects the real state.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    name: Build and smoke-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build the package
+        run: |
+          python -m pip install --upgrade build numpy
+          python -m build
+
+      - name: Smoke-test the CLI
+        run: |
+          python -c "import audio8bit; from audio8bit.cli import build_parser; build_parser(); print('audio8bit', audio8bit.version)"
