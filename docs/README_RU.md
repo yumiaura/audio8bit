@@ -3,22 +3,22 @@
 [![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
 ![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
 
-Превратите любую песню в 8-битную музыку в стиле видеоигр — прямо из терминала.
-audio8bit находит мелодию песни (и её аккорды) и воспроизводит их ретро-звуками
-«чиптюн», как старая игровая приставка.
+Превратите любую песню в 8‑битную музыку в стиле видеоигр — прямо из вашего
+терминала. audio8bit находит мелодию песни (и её аккорды) и воспроизводит их
+ретро‑звуками «чиптюн», как старая игровая приставка.
 
 [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | **[Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md)** | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
 ## Что это делает
 
-- Дайте ему песню — получите её чиптюн-версию.
+- Дайте ему песню — получите её чиптюн‑версию.
 - Работает как с песнями, где есть **пение**, так и с **инструментальными** —
   мелодия выбирается автоматически.
-- Всё выполняется на вашем компьютере; ничего никуда не загружается.
+- Всё выполняется на вашем собственном компьютере; ничего никуда не загружается.
 
 ## Перед началом
 
@@ -47,7 +47,7 @@ audio8bit -i song.mp3
 также выводится краткий отчёт о качестве, чтобы вы могли убедиться, что результат
 получился чистым.
 
-Хотите чего-то другого? Вот самые частые настройки:
+Хотите чего‑то другого? Вот самые частые настройки:
 
 ```bash
 audio8bit -i song.mp3 -V lead          # just the main melody, no chords
@@ -84,8 +84,8 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 
 1. Разделяет песню на части (вокал, ударные, бас и всё остальное).
 2. Определяет, какие ноты реально звучат в выбранной вами части.
-3. Воспроизводит эти ноты простыми 8-битными «чип»-звуками и сохраняет файл.
+3. Воспроизводит эти ноты простыми 8‑битными «чип»‑звуками и сохраняет файл.
 
-## License
+## Лицензия
 
-Лицензия MIT
+Бесплатно для некоммерческого использования. Подробности — в файле [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE).
