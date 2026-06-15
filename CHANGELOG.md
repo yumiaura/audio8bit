@@ -15,13 +15,14 @@ All notable changes to this project are documented here. The format follows
   `ci/build-badges`).
 
 ### Changed
-- Relicensed from MIT to a custom noncommercial license, `audio8bit License
-  0.0.0` (in `LICENSE`): free for noncommercial use, while commercial use
-  requires a separate paid license from the author. The README just states
+- Relicensed from MIT to the standard noncommercial **PolyForm Noncommercial
+  License 1.0.0** (in `LICENSE`): free for noncommercial use, while commercial
+  use requires a separate paid license from the author. The README just states
   "free for noncommercial use — see LICENSE for details" (the commercial terms
-  live in the license file, not the README); the license badge, the `pyproject`
-  license metadata and all 10 translations were updated to match (branch
-  `chore/noncommercial-license`).
+  live in the license file, not the README); the license badge reads
+  `noncommercial`, `pyproject` points its license at the `LICENSE` file, and all
+  10 translations match (branches `chore/noncommercial-license`,
+  `chore/standard-license`).
 
 ## 0.0.0 - 2026-06-15
 
