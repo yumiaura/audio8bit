@@ -1,12 +1,5 @@
 # audio8bit
 
-[![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
-![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
-![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
-![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
-
 Transformez n'importe quelle chanson en musique 8 bits, façon jeu vidéo —
 directement depuis votre terminal. audio8bit trouve la mélodie de la chanson
 (et ses accords) et les rejoue avec des sons rétro « chiptune », comme une
@@ -91,4 +84,4 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 
 ## Licence
 
-Gratuit pour un usage non commercial. Voir [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) pour les détails.
+Ce projet est sous licence PolyForm Noncommercial License — voir le fichier [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) pour les détails.

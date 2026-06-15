@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Removed
+- All README status badges (CI, PyPI, Python, license, theme, offline) in every
+  language. The README's License section is now just the standard one-line
+  pointer to the `LICENSE` file (branch `docs/no-badges`). The CI workflow
+  itself is kept; only its badge is gone.
+
 ### Added
 - CI workflow `.github/workflows/ci.yml`: builds the package and smoke-tests the
   CLI on every push to `main` and on pull requests, so the build-status badge is

@@ -1,12 +1,5 @@
 # audio8bit
 
-[![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
-![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
-![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
-![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
-
 किसी भी गाने को 8‑बिट, वीडियो‑गेम जैसी म्यूज़िक में बदलें — सीधे अपने टर्मिनल से।
 audio8bit गाने की धुन (और उसके कॉर्ड) ढूँढ़ता है और उन्हें पुराने ज़माने की
 "chiptune" आवाज़ों के साथ फिर से बजाता है, जैसे कोई पुराना गेम कंसोल।
@@ -87,4 +80,4 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 
 ## लाइसेंस
 
-ग़ैर-व्यावसायिक उपयोग के लिए मुफ़्त। विवरण के लिए [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) देखें।
+यह प्रोजेक्ट PolyForm Noncommercial License के अंतर्गत लाइसेंस्ड है — विवरण के लिए [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) फ़ाइल देखें।
