@@ -78,6 +78,13 @@ VOICES_LEAD = "lead"
 VOICES_CHOICES = (VOICES_CHORDS, VOICES_LEAD)
 DEFAULT_VOICES = VOICES_CHORDS
 CHORD_MIN_SECONDS = 0.04
+# Each chord voice is scaled by its transcribed loudness for real dynamics; the
+# floor keeps soft notes audible. A smooth envelope limiter then tames dense
+# chords without a global peak-normalise squashing the single notes — and
+# without waveshaping, which would fold harmonics past Nyquist and re-alias.
+CHORD_AMP_FLOOR = 0.2
+LIMITER_THRESHOLD = 0.7
+LIMITER_WINDOW_MS = 20.0
 
 MELODY_FRAME = 0.02
 MELODY_MIN_SECONDS = 0.06
@@ -417,14 +424,45 @@ def render_melody(notes, sample_rate, duty=DEFAULT_DUTY):
     return buffer.astype(np.float32)
 
 
+def smooth_envelope(signal, window):
+    """Centred moving average of ``signal`` over ``window`` samples (O(n))."""
+    if window <= 1:
+        return np.abs(signal)
+    half = window // 2
+    padded = np.pad(np.abs(signal), (half, window - 1 - half), mode="edge")
+    cumulative = np.cumsum(np.insert(padded, 0, 0.0))
+    return (cumulative[window:] - cumulative[:-window]) / window
+
+
+def soft_limiter(signal, sample_rate, threshold=LIMITER_THRESHOLD,
+                 window_ms=LIMITER_WINDOW_MS):
+    """Tame loud (dense) stretches with a smooth gain, leaving quiet parts alone.
+
+    A peak-normalise scales the whole mix down to the busiest chord, which
+    buries the single notes. Instead this follows a smoothed amplitude envelope
+    and pulls the gain down only where it exceeds ``threshold``. The gain is a
+    low-frequency curve, so multiplying by it adds no audible harmonics (no
+    aliasing) — unlike tanh-style waveshaping.
+    """
+    window = max(1, int(window_ms / 1000.0 * sample_rate))
+    envelope = np.maximum(smooth_envelope(signal, window), 1e-6)
+    gain = np.minimum(1.0, threshold / envelope)
+    gain = smooth_envelope(gain, window)
+    out = signal * gain
+    peak = float(np.max(np.abs(out)))
+    if peak > 0.95:
+        out *= 0.95 / peak
+    return out
+
+
 def render_chords(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
                   min_seconds=CHORD_MIN_SECONDS):
     """Render every transcribed note, so harmony and bass are kept (polyphony).
 
-    Each note becomes a band-limited pulse voice; they are summed and the mix
-    is peak-normalised. Pitches are kept as transcribed (only a uniform
-    ``transpose`` is applied) so the chords stay intact — a per-note octave
-    shift would scramble the harmony.
+    Each note is a band-limited pulse voice scaled by its transcribed loudness
+    (so the mix has real dynamics), summed, then levelled by a smooth limiter.
+    Pitches are kept as transcribed (only a uniform ``transpose`` is applied) so
+    the chords stay intact — a per-note octave shift would scramble the harmony.
     """
     notes = [event for event in events if event[1] - event[0] >= min_seconds]
     if not notes:
@@ -440,14 +478,12 @@ def render_chords(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
         time = np.arange(count) / sample_rate
         tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
                                   sample_rate, duty)
-        tone *= chip_envelope(count, sample_rate)
+        loudness = CHORD_AMP_FLOOR + (1.0 - CHORD_AMP_FLOOR) * min(1.0, amplitude)
+        tone *= chip_envelope(count, sample_rate) * loudness
         offset = int(start * sample_rate)
         stop = min(offset + count, total)
         buffer[offset:stop] += tone[:stop - offset]
-    peak = float(np.max(np.abs(buffer)))
-    if peak > 0:
-        buffer *= 0.9 / peak
-    return buffer.astype(np.float32)
+    return soft_limiter(buffer, sample_rate).astype(np.float32)
 
 
 def track_pitch(signal, sample_rate, hop=HOP, fmin=PITCH_FMIN, fmax=PITCH_FMAX):
