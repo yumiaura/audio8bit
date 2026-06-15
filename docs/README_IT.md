@@ -3,13 +3,13 @@
 [![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
 ![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
 
 Trasforma qualsiasi canzone in musica a 8 bit, in stile videogioco — direttamente
 dal tuo terminale. audio8bit trova la melodia della canzone (e i suoi accordi) e
-la riproduce con suoni "chiptune" retro, come una vecchia console per videogiochi.
+la riproduce con suoni "chiptune" retrò, come una vecchia console per videogiochi.
 
 [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | **[Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md)** | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
@@ -70,7 +70,7 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 | `-V, --voices`   | `chords`         | `chords` (con armonia) o `lead` (una sola linea melodica) |
 | `--transpose`    | `0`              | Cambia la tonalità, in semitoni (es. `5` su, `-5` giù) |
 | `--bits`         | `8`              | Risoluzione del suono, 1–8 (più basso = più grezzo) |
-| `--rate`         | `22050`          | Frequenza di campionamento in Hz (più bassa = più retro) |
+| `--rate`         | `22050`          | Frequenza di campionamento in Hz (più bassa = più retrò) |
 | `--duty`         | `0.25`           | Colore tonale dell'onda a impulsi, 0–1        |
 
 ## Se qualcosa va storto
@@ -87,6 +87,6 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 2. Rileva le note effettivamente suonate nella parte che hai scelto.
 3. Riproduce quelle note con semplici suoni "chip" a 8 bit e salva il file.
 
-## License
+## Licenza
 
-Licenza MIT
+Gratuito per uso non commerciale. Vedi [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) per i dettagli.
