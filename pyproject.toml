@@ -9,7 +9,7 @@ description = "Turn a song into an 8-bit / chiptune arrangement of its melody (v
 readme = "README.md"
 requires-python = ">=3.9"
 license = { file = "LICENSE" }
-authors = [{ name = "Olya Yumi" }]
+authors = [{ name = "Olya Pimenova" }]
 keywords = ["audio", "8bit", "chiptune", "melody", "transcription", "cli", "dsp", "ffmpeg"]
 classifiers = [
     "Environment :: Console",
