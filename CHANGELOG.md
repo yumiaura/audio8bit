@@ -7,6 +7,11 @@ All notable changes to this project are documented here. The format follows
 ## Unreleased
 
 ### Changed
+- Rewrote `README.md` to be beginner-friendly: plain-language sections (What it
+  does / Before you start / Install / Use it / All options / If something goes
+  wrong), the deep DSP terms moved out of the main flow, and a short status-badge
+  row added (license, Python, theme, offline). All 10 translations were
+  re-synced to match (branch `docs/simplify-readme`).
 - Re-synced the `docs/README_<LANG>.md` translations (all 10 languages) with the
   current README: the source/method/voices flags, the transcription + chords
   pipeline and the updated defaults are now reflected in every language (branch
