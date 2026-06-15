@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+### Changed
+- Chord rendering now has dynamics and a smooth limiter (branch
+  `feat/chord-dynamics`): each voice is scaled by its transcribed loudness
+  (with a floor so soft notes stay audible) instead of every note being equally
+  loud, and the summed mix is levelled by an envelope-following limiter instead
+  of a global peak-normalise — so a dense chord no longer buries the single
+  notes around it. The limiter shapes a low-frequency gain curve (no
+  waveshaping), so it stays alias-free.
+
 ### Added
 - Polyphonic chord rendering, `-V/--voices {chords,lead}` (default `chords`):
   with `--method transcribe` the output now plays every transcribed note, so
