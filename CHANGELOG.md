@@ -7,6 +7,10 @@ All notable changes to this project are documented here. The format follows
 ## Unreleased
 
 ### Changed
+- Re-synced the `docs/README_<LANG>.md` translations (all 10 languages) with the
+  current README: the source/method/voices flags, the transcription + chords
+  pipeline and the updated defaults are now reflected in every language (branch
+  `docs/i18n-refresh`).
 - Chord rendering now has dynamics and a smooth limiter (branch
   `feat/chord-dynamics`): each voice is scaled by its transcribed loudness
   (with a floor so soft notes stay audible) instead of every note being equally
