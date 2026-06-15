@@ -1,6 +1,11 @@
 # audio8bit
 
-Transforme qualquer música em som 8‑bit, no estilo de videogame — direto do seu
+[![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Downloads](https://img.shields.io/pypi/dm/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Python](https://img.shields.io/pypi/pyversions/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+
+Transforme qualquer música em som 8-bit, no estilo de videogame - direto do seu
 terminal. O audio8bit encontra a melodia da música (e seus acordes) e a
 reproduz com sons retrô de "chiptune", como um console de jogos antigo.
 
@@ -9,7 +14,7 @@ reproduz com sons retrô de "chiptune", como um console de jogos antigo.
 ## O que ele faz
 
 - Dê uma música e receba de volta uma versão chiptune dela.
-- Funciona tanto se a música tiver **canto** quanto se for **instrumental** —
+- Funciona tanto se a música tiver **canto** quanto se for **instrumental** -
   ele escolhe a melodia automaticamente.
 - Tudo roda no seu próprio computador; nada é enviado para a internet.
 
@@ -18,7 +23,7 @@ reproduz com sons retrô de "chiptune", como um console de jogos antigo.
 Você precisa de duas coisas:
 
 - **Python 3.9 ou mais recente**
-- **ffmpeg** — uma ferramenta gratuita para ler e gravar áudio. Instale com
+- **ffmpeg** - uma ferramenta gratuita para ler e gravar áudio. Instale com
   `sudo apt install ffmpeg` (Linux) ou `brew install ffmpeg` (macOS).
 
 ## Instalação
@@ -28,7 +33,7 @@ pip install audio8bit
 ```
 
 > **A primeira execução é lenta:** ela baixa um pequeno modelo de IA (cerca de
-> 80 MB) e pode levar alguns minutos. Isso é normal — as execuções seguintes
+> 80 MB) e pode levar alguns minutos. Isso é normal - as execuções seguintes
 > são mais rápidas.
 
 ## Como usar
@@ -55,31 +60,31 @@ audio8bit -i song.mp3 -f ogg           # salvar como .ogg em vez de .mp3
 
 | Option           | Default          | O que faz                                     |
 | ---------------- | ---------------- | --------------------------------------------- |
-| `-i, --input`    | required         | A música a converter (mp3, wav, flac, …)      |
+| `-i, --input`    | required         | A música a converter (mp3, wav, flac, ...)      |
 | `-o, --output`   | `output.<type>`  | Onde salvar o resultado                       |
 | `-f, --format`   | same as input    | Salvar em outro tipo, ex.: `ogg`, `wav`       |
 | `-s, --source`   | `auto`           | De onde tirar a melodia: `vocals`, `instrumental` ou `auto` |
 | `-m, --method`   | `transcribe`     | Como as notas são encontradas: `transcribe` (melhor) ou `pitch` (mais rápido, mais leve) |
 | `-V, --voices`   | `chords`         | `chords` (com harmonia) ou `lead` (uma única linha de melodia) |
 | `--transpose`    | `0`              | Muda o tom, em semitons (ex.: `5` para cima, `-5` para baixo) |
-| `--bits`         | `8`              | Resolução do som, 1–8 (menor = mais áspero)   |
+| `--bits`         | `8`              | Resolução do som, 1-8 (menor = mais áspero)   |
 | `--rate`         | `22050`          | Taxa de amostragem em Hz (menor = mais retrô) |
-| `--duty`         | `0.25`           | Timbre da onda quadrada (pulse wave), 0–1     |
+| `--duty`         | `0.25`           | Timbre da onda quadrada (pulse wave), 0-1     |
 
 ## Se algo der errado
 
-- **"ffmpeg not found"** — instale o ffmpeg (veja *Antes de começar*).
-- **A primeira execução parece travada** — ela está baixando o modelo de IA;
+- **"ffmpeg not found"** - instale o ffmpeg (veja *Antes de começar*).
+- **A primeira execução parece travada** - ela está baixando o modelo de IA;
   dê alguns minutos. Isso só acontece uma vez.
-- **Não soa como a música** — tente `-s vocals` ou `-s instrumental` para
+- **Não soa como a música** - tente `-s vocals` ou `-s instrumental` para
   escolher a parte certa, ou `-V lead` para apenas a melodia.
 
 ## Como funciona (leitura opcional)
 
 1. Divide a música em partes (vocais, bateria, baixo e o restante).
 2. Detecta as notas que estão realmente sendo tocadas na parte que você escolheu.
-3. Reproduz essas notas com sons "chip" simples de 8‑bit e salva o arquivo.
+3. Reproduz essas notas com sons "chip" simples de 8-bit e salva o arquivo.
 
 ## Licença
 
-Este projeto é licenciado sob a PolyForm Noncommercial License — veja o arquivo [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) para detalhes.
+[Noncommercial](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
