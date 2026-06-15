@@ -6,7 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## Unreleased
 
+## 0.0.0 - 2026-06-15
+
 ### Changed
+- Set the package version to `0.0.0` for the first PyPI release (branch
+  `chore/pypi-publish`).
 - Rewrote `README.md` to be beginner-friendly: plain-language sections (What it
   does / Before you start / Install / Use it / All options / If something goes
   wrong), the deep DSP terms moved out of the main flow, and a short status-badge
@@ -25,6 +29,10 @@ All notable changes to this project are documented here. The format follows
   waveshaping), so it stays alias-free.
 
 ### Added
+- PyPI publish workflow `.github/workflows/publish.yml`: builds and uploads the
+  package to pypi.org when a GitHub Release is published (or on manual
+  dispatch), using Trusted Publishing/OIDC so no API token is stored in the
+  repo (branch `chore/pypi-publish`).
 - Polyphonic chord rendering, `-V/--voices {chords,lead}` (default `chords`):
   with `--method transcribe` the output now plays every transcribed note, so
   the harmony and bass are kept instead of a single bare line — much closer to
