@@ -11,8 +11,10 @@ from audio8bit.converter import (
     DEFAULT_RATE,
     DEFAULT_SOURCE,
     DEFAULT_TRANSPOSE,
+    DEFAULT_VOICES,
     METHOD_CHOICES,
     SOURCE_CHOICES,
+    VOICES_CHOICES,
     ConversionError,
     convert,
 )
@@ -48,9 +50,15 @@ def build_parser():
     )
     parser.add_argument(
         "-m", "--method", choices=METHOD_CHOICES, default=DEFAULT_METHOD,
-        help="how to find the notes: 'transcribe' (polyphonic note model, keeps "
-             "the top line; best for chords/instrumentals) or 'pitch' (lighter "
-             f"pYIN tracker snapped to the beat) (default: {DEFAULT_METHOD})",
+        help="how to find the notes: 'transcribe' (polyphonic note model; best "
+             "for chords/instrumentals) or 'pitch' (lighter pYIN tracker snapped "
+             f"to the beat) (default: {DEFAULT_METHOD})",
+    )
+    parser.add_argument(
+        "-V", "--voices", choices=VOICES_CHOICES, default=DEFAULT_VOICES,
+        help="with --method transcribe: 'chords' plays every note (harmony and "
+             "bass kept) or 'lead' plays a single melody line "
+             f"(default: {DEFAULT_VOICES})",
     )
     parser.add_argument(
         "--transpose", type=int, default=DEFAULT_TRANSPOSE,
@@ -89,6 +97,7 @@ def main(argv=None):
             transpose=args.transpose,
             source=args.source,
             method=args.method,
+            voices=args.voices,
         )
     except ConversionError as error:
         print(f"audio8bit: {error}", file=sys.stderr)
