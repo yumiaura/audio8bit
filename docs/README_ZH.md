@@ -1,62 +1,86 @@
 # audio8bit
 
-把一首歌变成 8 位芯片音乐编曲——演唱的人声**或**带有和声的伴奏——以 80 年代游戏主机播放的方式呈现，全程在命令行中完成。
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
+![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
+![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
+
+把任何一首歌变成 8 位、电子游戏风格的音乐——直接在你的终端里完成。
+audio8bit 会找出歌曲的旋律（以及它的和弦），并用复古的
+“chiptune”（芯片音乐）音色重新演奏出来，就像一台老式游戏机一样。
 
 [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | **[中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md)** | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
-它保留曲调，并为芯片音色重新编排：
+## 它能做什么
 
-1. **音源分离** —— [Demucs](https://github.com/adefossez/demucs)（一种神经网络音源分离模型）将歌曲拆分为各个音轨，以确定性方式运行，因此相同的输入始终给出相同的结果。旋律取自演唱的**人声**，或者对于纯器乐曲目，取自伴奏的**主奏**（去掉鼓和贝斯）；`--source auto` 在歌曲确实有人声时使用人声，否则使用器乐。
-2. **音符识别**（`--method`，默认 `transcribe`）—— 一个复音转录模型（[basic-pitch](https://github.com/spotify/basic-pitch)）将音轨转换成真实的音符。`--voices chords`（默认）会演奏每一个音符，因此和声与贝斯都得以保留；`--voices lead` 则在和弦之间跟随单一的旋律线（采用 Viterbi 路径，而不是那种在主奏与伴奏之间跳来跳去的朴素顶音线）。这种方式在和弦与器乐曲目上能保持连贯，而逐帧的音高追踪只会在各声部之间乱跳，听起来杂乱无章。`--method pitch` 则改用 librosa 的 pYIN，并对齐到歌曲的节拍网格（单音、更轻量、不需要 TensorFlow）。
-3. **音乐化** —— 可选的 `--transpose` 可改变调性。`lead` 会做八度移位进入铃声音域；`chords` 保留转录得到的音高，使和声保持完整。转录出的音符保留其自身的自然时值，而不是被对齐到网格上。
-4. **芯片合成** —— 每个音符都是一个带限脉冲音色（`lead` 与 `pitch` 路径会加入颤音/衰减，`pitch` 还会加入三角波贝斯以及与速度同步的回声）；从构造上就不会产生混叠（只对低于 Nyquist 的谐波求和）。`chords` 会按照每个音色转录得到的响度进行缩放以体现强弱变化，并用平滑的限幅器对整体混音做电平控制，这样密集的和弦就不会盖住单个音符。
-5. **8 位输出 + 质量报告** —— 量化为 8 位 PCM，写为 WAV 或重新编码为你选择的格式，然后进行评分：对单一旋律线采用旋律“糊成一团”的启发式判断，对和弦则采用音频层面的检查（静音、混叠、削波）——这样糟糕的结果会被客观地标记出来，而不是靠耳朵去发现。
+- 给它一首歌，它会返回这首歌的 chiptune 版本。
+- 无论歌曲是**有人声演唱**还是**纯器乐**都能处理——它会自动挑选出曲调。
+- 一切都在你自己的电脑上运行；不会上传任何东西。
 
-> **请注意：** 默认的 `transcribe` 方法会引入 basic-pitch（TensorFlow），而 Demucs 会引入 PyTorch——两者都是庞大的安装包——并且 Demucs 会在首次运行时下载它的模型（约 80 MB）。在 CPU 上，分离加转录每首曲子需要几分钟。这正是让旋律真正可辨认的关键所在。所有处理都在本地运行。
+## 开始之前
 
-## Requirements
+你需要两样东西：
 
-- Python 3.9+
-- 你的 `PATH` 上的 [ffmpeg](https://ffmpeg.org/)（自带 `ffmpeg` 和 `ffprobe`）
+- **Python 3.9 或更新版本**
+- **ffmpeg**——一个用于读取和写入音频的免费工具。安装方法：
+  `sudo apt install ffmpeg`（Linux）或 `brew install ffmpeg`（macOS）。
 
-## Install
+## 安装
 
 ```bash
 pip install audio8bit
 ```
 
-或者直接从克隆的仓库运行（先安装依赖：`pip install numpy demucs librosa basic-pitch`）：
+> **第一次运行会比较慢：** 它会下载一个小型 AI 模型（约 80 MB），可能
+> 需要几分钟。这是正常的——之后的运行会更快。
+
+## 使用方法
 
 ```bash
-python main.py -i song.mp3
+audio8bit -i song.mp3
 ```
 
-## Usage
+这会在当前文件夹里生成 `output.mp3`。就这么简单。每次运行还会
+打印一份简短的质量报告，让你看到结果是否干净。
+
+想要不一样的效果？下面是最常用的几种调整：
 
 ```bash
-audio8bit -i song.mp3                      # -> output.mp3, full chords (keeps the input format)
-audio8bit -i song.mp3 -V lead              # a single melody line instead of chords
-audio8bit -i track.mp3 -s instrumental     # follow the instrumental, not vocals
-audio8bit -i song.mp3 -m pitch             # lighter pYIN method (no TensorFlow)
-audio8bit -i song.mp3 -f ogg               # -> output.ogg
-audio8bit -i song.mp3 --transpose 5        # 5 semitones up
-audio8bit -i song.mp3 --duty 0.5 --rate 11025
+audio8bit -i song.mp3 -V lead          # just the main melody, no chords
+audio8bit -i song.mp3 -s vocals        # follow the singing
+audio8bit -i song.mp3 -s instrumental  # follow the instruments
+audio8bit -i song.mp3 --transpose 5    # play it 5 semitones higher
+audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 ```
 
-| Flag             | Default          | Description                                  |
-| ---------------- | ---------------- | -------------------------------------------- |
-| `-i, --input`    | — (required)     | 输入音频（ffmpeg 能读取的任何格式）              |
-| `-o, --output`   | `output.<ext>`   | 输出路径（覆盖 `-f`）                           |
-| `-f, --format`   | input's format   | 输出格式/扩展名，例如 `ogg`                     |
-| `-s, --source`   | `auto`           | 要跟随的旋律：`vocals`、`instrumental`、`auto` |
-| `-m, --method`   | `transcribe`     | 音符识别：`transcribe`（复音）或 `pitch`（pYIN） |
-| `-V, --voices`   | `chords`         | 转录输出：`chords`（和声）或 `lead`（单一旋律线） |
-| `--transpose`    | `0`              | 以半音为单位的调性移动（允许负值）              |
-| `--bits`         | `8`              | 量化到的位深度（1–8）                          |
-| `--rate`         | `22050`          | 以 Hz 为单位的输出采样率                       |
-| `--duty`         | `0.25`           | 脉冲波占空比（0–1）                            |
+## 所有选项
 
-退出码：`0` 成功，`1` 转换错误，`2` 参数错误。每次运行都会以一份质量报告结束；未通过的检查会向 stderr 打印警告。
+| Option           | Default          | 它的作用                                       |
+| ---------------- | ---------------- | --------------------------------------------- |
+| `-i, --input`    | required         | 要转换的歌曲（mp3、wav、flac……）                |
+| `-o, --output`   | `output.<type>`  | 结果保存到哪里                                  |
+| `-f, --format`   | same as input    | 保存为不同的格式，例如 `ogg`、`wav`             |
+| `-s, --source`   | `auto`           | 从哪里提取曲调：`vocals`、`instrumental` 或 `auto` |
+| `-m, --method`   | `transcribe`     | 如何找出音符：`transcribe`（最佳）或 `pitch`（更快、更轻量） |
+| `-V, --voices`   | `chords`         | `chords`（带和声）或 `lead`（单一旋律线） |
+| `--transpose`    | `0`              | 移调，以半音为单位（例如 `5` 升高，`-5` 降低） |
+| `--bits`         | `8`              | 音频位深，1–8（越低越粗糙）                     |
+| `--rate`         | `22050`          | 采样率，单位 Hz（越低越复古）                   |
+| `--duty`         | `0.25`           | 脉冲波的音色，0–1                              |
+
+## 如果出了问题
+
+- **“ffmpeg not found”**——请安装 ffmpeg（见*开始之前*）。
+- **第一次运行好像卡住了**——它正在下载 AI 模型；请给它几分钟。
+  这只会发生一次。
+- **听起来不像原曲**——试试 `-s vocals` 或 `-s instrumental` 来
+  挑选正确的部分，或者用 `-V lead` 只保留旋律。
+
+## 它的工作原理（选读）
+
+1. 把歌曲拆分成若干部分（人声、鼓、贝斯，以及其余部分）。
+2. 检测你所选部分中实际演奏的音符。
+3. 用简单的 8 位“芯片”音色重新演奏这些音符，并保存文件。
 
 ## License
 
