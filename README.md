@@ -1,17 +1,21 @@
 # audio8bit
 
-Turn a song into an 8-bit chiptune arrangement of its sung melody — the way an
-80s game console would play it — straight from the command line.
+Turn a song into an 8-bit chiptune arrangement of its melody — the sung vocal
+**or** the instrumental lead — the way an 80s game console would play it,
+straight from the command line.
 
 **[English](https://github.com/yumiaura/audio8bit/blob/main/README.md)** | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
-It removes the words, keeps the tune, and re-arranges it for chip voices:
+It keeps the tune and re-arranges it for chip voices:
 
-1. **Vocal isolation** — [Demucs](https://github.com/adefossez/demucs) (a neural
-   source-separation model) extracts the sung melody on its own, run
-   deterministically so the same input always gives the same result.
+1. **Source separation** — [Demucs](https://github.com/adefossez/demucs) (a
+   neural source-separation model) splits the song into stems, run
+   deterministically so the same input always gives the same result. The melody
+   is taken from the sung **vocals** or, for an instrumental, from the backing
+   **lead** (drums and bass removed); `--source auto` uses the vocal when the
+   song actually has one and the instrumental otherwise.
 2. **Pitch tracking** — librosa's pYIN follows the fundamental frequency of the
-   isolated voice over time, restricted to the singing range so octave-tracking
+   chosen stem over time, within a band suited to that source so octave-tracking
    errors stay rare.
 3. **Note extraction** — the pitch track is split into discrete notes with
    hysteresis: vibrato and scoops stay inside one note, voicing gaps are
@@ -53,10 +57,11 @@ python main.py -i song.mp3
 ## Usage
 
 ```bash
-audio8bit -i song.mp3                 # -> output.mp3 (keeps the input format)
-audio8bit -i song.mp3 -f ogg          # -> output.ogg
-audio8bit -i song.mp3 -o ring.wav     # explicit output path
-audio8bit -i song.mp3 --transpose -5  # darker key, 5 semitones down
+audio8bit -i song.mp3                      # -> output.mp3 (keeps the input format)
+audio8bit -i track.mp3 -s instrumental     # follow the instrumental lead, not vocals
+audio8bit -i song.mp3 -f ogg               # -> output.ogg
+audio8bit -i song.mp3 -o ring.wav          # explicit output path
+audio8bit -i song.mp3 --transpose -5       # darker key, 5 semitones down
 audio8bit -i song.mp3 --duty 0.5 --rate 11025
 ```
 
@@ -65,6 +70,7 @@ audio8bit -i song.mp3 --duty 0.5 --rate 11025
 | `-i, --input`    | — (required)     | Input audio (any format ffmpeg can read)     |
 | `-o, --output`   | `output.<ext>`   | Output path (overrides `-f`)                 |
 | `-f, --format`   | input's format   | Output format/extension, e.g. `ogg`          |
+| `-s, --source`   | `auto`           | Melody to follow: `vocals`, `instrumental`, `auto` |
 | `--transpose`    | `3`              | Key shift in semitones (negative allowed)    |
 | `--bits`         | `8`              | Bit depth to quantise to (1–8)               |
 | `--rate`         | `22050`          | Output sample rate in Hz                     |
