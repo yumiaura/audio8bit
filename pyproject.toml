@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "audio8bit"
-version = "0.1.0"
+version = "0.0.0"
 description = "CLI to convert any audio file into 8-bit / chiptune-style sound (bitcrusher)"
 readme = "README.md"
 requires-python = ">=3.9"
