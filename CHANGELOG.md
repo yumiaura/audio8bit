@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 ## Unreleased
 
 ### Added
+- Polyphonic note transcription as the default melody method, `-m/--method
+  {transcribe,pitch}` (default `transcribe`). It runs the basic-pitch model on
+  the chosen stem and keeps the top line (a skyline melody), so chord-heavy and
+  instrumental material no longer comes out as random-sounding notes the way
+  frame-by-frame pYIN tracking did. The transcribed notes keep their own
+  natural timing instead of being snapped to a beat grid. `--method pitch`
+  retains the old pYIN tracker (lighter, no TensorFlow). Adds the `basic-pitch`
+  dependency (branch `feat/note-transcription`).
 - `-s/--source {auto,vocals,instrumental}` (default `auto`): the melody can now
   be taken from the **instrumental lead** (Demucs' `other` stem, drums and bass
   removed), not only the sung vocal — so purely instrumental tracks work. `auto`
