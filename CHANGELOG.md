@@ -7,6 +7,14 @@ All notable changes to this project are documented here. The format follows
 ## Unreleased
 
 ### Added
+- Polyphonic chord rendering, `-V/--voices {chords,lead}` (default `chords`):
+  with `--method transcribe` the output now plays every transcribed note, so
+  the harmony and bass are kept instead of a single bare line — much closer to
+  the original. `--voices lead` keeps the old single-melody-line behaviour.
+  Chords keep their transcribed pitches (only a uniform transpose is applied, so
+  the harmony is not scrambled) and are checked with audio-level validation
+  (silence/aliasing/clipping) rather than the single-line "mush" heuristics
+  (branch `feat/polyphonic-chords`).
 - Polyphonic note transcription as the default melody method, `-m/--method
   {transcribe,pitch}` (default `transcribe`). It runs the basic-pitch model on
   the chosen stem and keeps the top line (a skyline melody), so chord-heavy and
@@ -46,6 +54,8 @@ All notable changes to this project are documented here. The format follows
   `.gitignore` (branch `chore/claude-md`).
 
 ### Changed
+- `--transpose` now defaults to `0` (original key) instead of `+3`; a key shift
+  is opt-in (branch `feat/polyphonic-chords`).
 - The output is now a full chiptune arrangement instead of bare beeps: notes
   are extracted with hysteresis (vibrato/scoops stay inside one note, voicing
   gaps bridged, octave errors folded, A-B-A ornament flicker absorbed), onsets

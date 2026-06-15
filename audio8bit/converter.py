@@ -1,29 +1,30 @@
 """DSP core: turn a song into a chiptune arrangement of its melody.
 
-The pipeline extracts a single melodic line and re-arranges it the way an 80s
-game console would play it:
+The pipeline transcribes a song's melody (with its harmony) and re-arranges it
+the way an 80s game console would play it:
 
 * source separation — Demucs (a neural source-separation model) splits the song
   into stems; the melody is taken from the sung ``vocals`` or, for an
   instrumental, from the backing lead in the ``other`` stem (drums and bass
   removed). ``auto`` uses the vocal when the song actually has one;
 * note finding — by default a polyphonic transcription model (basic-pitch)
-  turns the stem into real notes, and one melody is followed through them with a
-  Viterbi path that favours the loudest line while staying smooth (instead of
-  the naive top line, which jumps between lead and accompaniment); this holds
-  together on chords and instrumentals where frame-by-frame pitch tracking just
-  jumps between voices. ``--method pitch`` instead uses librosa's pYIN and snaps
-  the result to the song's beat grid (lighter, no TensorFlow);
-* musicalisation — the melody is shifted into a ringtone register and
-  transposed; the transcription path keeps the notes' own natural timing
-  rather than quantising onto a grid;
-* chip synthesis — a band-limited pulse lead with vibrato and decay
-  envelopes, a triangle bass an octave below on the beats, and a tempo-synced
-  echo, all alias-free by construction;
+  turns the stem into real notes. ``--voices chords`` (default) plays every
+  note, keeping harmony and bass; ``--voices lead`` follows one melody line
+  through them with a Viterbi path (loudest-but-smooth, not the naive top line
+  which jumps between lead and accompaniment). ``--method pitch`` instead uses
+  librosa's pYIN snapped to the song's beat grid (monophonic, lighter, no
+  TensorFlow);
+* musicalisation — a uniform transpose can change the key; ``lead`` is also
+  octave-shifted into a ringtone register, while ``chords`` keeps the
+  transcribed pitches so the harmony stays intact. Transcribed notes keep
+  their own natural timing rather than being quantised onto a grid;
+* chip synthesis — each note is a band-limited pulse voice (the ``lead`` and
+  ``pitch`` paths add vibrato/decay and, for ``pitch``, a triangle bass and a
+  tempo-synced echo), all alias-free by construction;
 * 8-bit output — the mix is quantised to 8-bit unsigned PCM and written as
   WAV, or re-encoded by ffmpeg to the chosen format;
-* validation — the result is scored against "mush" heuristics (note density,
-  fragmentation, trills, range, clipping) and a quality report is returned.
+* validation — a quality report is returned: melodic "mush" heuristics for a
+  single line, or audio-level checks (silence, aliasing, clipping) for chords.
 
 Demucs and librosa are heavy dependencies (Demucs pulls in PyTorch and
 downloads model weights on first use), so they are imported lazily with a
@@ -67,6 +68,17 @@ METHOD_PITCH = "pitch"
 METHOD_CHOICES = (METHOD_TRANSCRIBE, METHOD_PITCH)
 DEFAULT_METHOD = METHOD_TRANSCRIBE
 
+# How many voices to play from a transcription. "chords" plays every
+# transcribed note, so harmony and bass are kept (fuller, closer to the song);
+# "lead" reduces it to a single melody line. Only applies to --method transcribe
+# (pYIN is monophonic). "chords" keeps the notes' real pitches (a per-note
+# octave shift would wreck the harmony), so only a uniform transpose is applied.
+VOICES_CHORDS = "chords"
+VOICES_LEAD = "lead"
+VOICES_CHOICES = (VOICES_CHORDS, VOICES_LEAD)
+DEFAULT_VOICES = VOICES_CHORDS
+CHORD_MIN_SECONDS = 0.04
+
 MELODY_FRAME = 0.02
 MELODY_MIN_SECONDS = 0.06
 MELODY_MERGE_GAP = 0.05
@@ -90,7 +102,7 @@ VOCAL_PRESENCE_FLOOR = 0.01
 DEFAULT_RATE = 22050
 DEFAULT_BITS = 8
 DEFAULT_DUTY = 0.25
-DEFAULT_TRANSPOSE = 3
+DEFAULT_TRANSPOSE = 0
 
 PITCH_TOLERANCE = 0.6
 DRIFT_FRAMES = 3
@@ -399,6 +411,39 @@ def render_melody(notes, sample_rate, duty=DEFAULT_DUTY):
         offset = int(start * sample_rate)
         end = min(offset + count, total)
         buffer[offset:end] += tone[:end - offset]
+    peak = float(np.max(np.abs(buffer)))
+    if peak > 0:
+        buffer *= 0.9 / peak
+    return buffer.astype(np.float32)
+
+
+def render_chords(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
+                  min_seconds=CHORD_MIN_SECONDS):
+    """Render every transcribed note, so harmony and bass are kept (polyphony).
+
+    Each note becomes a band-limited pulse voice; they are summed and the mix
+    is peak-normalised. Pitches are kept as transcribed (only a uniform
+    ``transpose`` is applied) so the chords stay intact — a per-note octave
+    shift would scramble the harmony.
+    """
+    notes = [event for event in events if event[1] - event[0] >= min_seconds]
+    if not notes:
+        notes = list(events)
+    span = max(end for start, end, pitch, amplitude in notes)
+    total = int(span * sample_rate) + sample_rate
+    buffer = np.zeros(total, dtype=np.float64)
+    for start, end, pitch, amplitude in notes:
+        count = int((end - start) * sample_rate)
+        if count <= 0:
+            continue
+        frequency = float(midi_to_hz(pitch + transpose))
+        time = np.arange(count) / sample_rate
+        tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
+                                  sample_rate, duty)
+        tone *= chip_envelope(count, sample_rate)
+        offset = int(start * sample_rate)
+        stop = min(offset + count, total)
+        buffer[offset:stop] += tone[:stop - offset]
     peak = float(np.max(np.abs(buffer)))
     if peak > 0:
         buffer *= 0.9 / peak
@@ -893,18 +938,51 @@ def validate_melody(notes, samples_u8, sample_rate):
     check("sound coverage", f"{coverage * 100:.0f}%",
           0.12 <= coverage <= 0.97, "12-97%")
 
-    samples = samples_u8.astype(np.float64) / 127.5 - 1.0
-    spectrum = np.abs(np.fft.rfft(samples)) ** 2
-    frequencies = np.fft.rfftfreq(samples.size, 1.0 / sample_rate)
-    guard = frequencies > 0.92 * (sample_rate / 2.0)
-    alias_share = float(spectrum[guard].sum() / spectrum.sum()) if spectrum.sum() else 0.0
-    check("energy above the band limit", f"{alias_share * 100:.2f}%",
-          alias_share < 0.01, "< 1%")
+    aliasing = alias_share(samples_u8, sample_rate)
+    check("energy above the band limit", f"{aliasing * 100:.2f}%",
+          aliasing < 0.01, "< 1%")
 
     clip_share = float(((samples_u8 == 0) | (samples_u8 == 255)).mean())
     check("clipped samples", f"{clip_share * 100:.2f}%", clip_share < 0.01, "< 1%")
 
     lines = [("ok   " if ok else "MUSH ") + text for ok, text in checks]
+    return all(ok for ok, text in checks), lines
+
+
+def alias_share(samples_u8, sample_rate):
+    """Fraction of spectral energy above the band-limit guard (folded aliasing)."""
+    samples = samples_u8.astype(np.float64) / 127.5 - 1.0
+    spectrum = np.abs(np.fft.rfft(samples)) ** 2
+    frequencies = np.fft.rfftfreq(samples.size, 1.0 / sample_rate)
+    guard = frequencies > 0.92 * (sample_rate / 2.0)
+    return float(spectrum[guard].sum() / spectrum.sum()) if spectrum.sum() else 0.0
+
+
+def validate_audio(samples_u8, sample_rate, note_count):
+    """Audio-level checks for the polyphonic path (melodic "mush" ones don't fit).
+
+    A chord render is not a single line, so note density, trills, span and leaps
+    are meaningless; this just confirms the result has content, stays alias-free
+    and does not clip.
+    """
+    checks = []
+
+    def check(name, value, ok, target):
+        checks.append((ok, f"{name}: {value} (target {target})"))
+
+    check("transcribed notes", f"{note_count}", note_count > 0, "> 0")
+
+    loudness = float(np.std(samples_u8.astype(np.float64)))
+    check("not silent", f"std {loudness:.1f}", loudness > 1.0, "> 1")
+
+    aliasing = alias_share(samples_u8, sample_rate)
+    check("energy above the band limit", f"{aliasing * 100:.2f}%",
+          aliasing < 0.01, "< 1%")
+
+    clip_share = float(((samples_u8 == 0) | (samples_u8 == 255)).mean())
+    check("clipped samples", f"{clip_share * 100:.2f}%", clip_share < 0.01, "< 1%")
+
+    lines = [("ok   " if ok else "BAD  ") + text for ok, text in checks]
     return all(ok for ok, text in checks), lines
 
 
@@ -1014,14 +1092,19 @@ def extract_by_pitch(signal, sample_rate, fmin, fmax, picked, transpose, origin)
     return notes, tempo
 
 
-def extract_by_transcription(signal, sample_rate, picked, transpose):
-    """New path: transcribe to notes, keep the top line, play it as written."""
+def transcribe_events(signal, sample_rate, picked):
+    """Transcribe a stem to notes, raising if nothing comes back."""
     events = transcribe_notes(signal, sample_rate)
     if not events:
         raise ConversionError(
             f"No notes could be transcribed from the {picked} (try a clearer "
             "track, or --source instrumental / --source vocals)."
         )
+    return events
+
+
+def lead_from_events(events, transpose):
+    """Reduce transcribed notes to one melody line in the ringtone register."""
     notes = melody_line(events)
     if not notes:
         raise ConversionError("No melodic line could be extracted from the notes.")
@@ -1032,13 +1115,13 @@ def extract_by_transcription(signal, sample_rate, picked, transpose):
 
 def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
             rate=DEFAULT_RATE, duty=DEFAULT_DUTY, transpose=DEFAULT_TRANSPOSE,
-            source=DEFAULT_SOURCE, method=DEFAULT_METHOD):
-    """Convert a song into a chiptune melody and write it to disk.
+            source=DEFAULT_SOURCE, method=DEFAULT_METHOD, voices=DEFAULT_VOICES):
+    """Convert a song into a chiptune arrangement and write it to disk.
 
-    ``source`` chooses which line to follow: the sung ``vocals``, the backing
-    ``instrumental`` lead, or ``auto``. ``method`` chooses how the notes are
-    found: ``transcribe`` (polyphonic note model, top line) or ``pitch`` (pYIN
-    tracker snapped to the beat).
+    ``source`` chooses the stem (``vocals``/``instrumental``/``auto``).
+    ``method`` chooses how notes are found (``transcribe``/``pitch``).
+    ``voices`` (transcribe only) chooses ``chords`` (every note, harmony kept)
+    or ``lead`` (a single melody line).
 
     Returns (destination_path, quality_ok, quality_report_lines).
     """
@@ -1063,15 +1146,31 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         raise ConversionError(
             f"--method must be one of {', '.join(METHOD_CHOICES)}, got '{method}'"
         )
+    if voices not in VOICES_CHOICES:
+        raise ConversionError(
+            f"--voices must be one of {', '.join(VOICES_CHOICES)}, got '{voices}'"
+        )
 
     destination = resolve_output_path(origin, output_path, format)
 
     stems, sample_rate = separate_sources(origin)
     signal, fmin, fmax, picked = select_melody(stems, source)
+    info = [f"melody source: {picked}", f"method: {method}"]
+
+    if method == METHOD_TRANSCRIBE and voices == VOICES_CHORDS:
+        events = transcribe_events(signal, sample_rate, picked)
+        voice = render_chords(events, rate, duty, transpose)
+        samples_u8 = to_uint8(quantize(voice, bits))
+        write_output(destination, samples_u8, rate, 1)
+        quality_ok, report = validate_audio(samples_u8, rate, len(events))
+        info.append("voices: chords")
+        return destination, quality_ok, info + report
 
     if method == METHOD_TRANSCRIBE:
-        notes = extract_by_transcription(signal, sample_rate, picked, transpose)
+        events = transcribe_events(signal, sample_rate, picked)
+        notes = lead_from_events(events, transpose)
         voice = render_melody(notes, rate, duty)
+        info.append("voices: lead")
     else:
         notes, tempo = extract_by_pitch(
             signal, sample_rate, fmin, fmax, picked, transpose, origin,
@@ -1080,7 +1179,5 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
 
     samples_u8 = to_uint8(quantize(voice, bits))
     write_output(destination, samples_u8, rate, 1)
-
     quality_ok, report = validate_melody(notes, samples_u8, rate)
-    info = [f"melody source: {picked}", f"method: {method}"]
     return destination, quality_ok, info + report
