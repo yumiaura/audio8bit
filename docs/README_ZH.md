@@ -1,6 +1,11 @@
 # audio8bit
 
-把任何一首歌变成 8 位、电子游戏风格的音乐——直接在你的终端里完成。
+[![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Downloads](https://img.shields.io/pypi/dm/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Python](https://img.shields.io/pypi/pyversions/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+
+把任何一首歌变成 8 位、电子游戏风格的音乐--直接在你的终端里完成。
 audio8bit 会找出歌曲的旋律（以及它的和弦），并用复古的
 “chiptune”（芯片音乐）音色重新演奏出来，就像一台老式游戏机一样。
 
@@ -9,7 +14,7 @@ audio8bit 会找出歌曲的旋律（以及它的和弦），并用复古的
 ## 它能做什么
 
 - 给它一首歌，它会返回这首歌的 chiptune 版本。
-- 无论歌曲是**有人声演唱**还是**纯器乐**都能处理——它会自动挑选出曲调。
+- 无论歌曲是**有人声演唱**还是**纯器乐**都能处理--它会自动挑选出曲调。
 - 一切都在你自己的电脑上运行；不会上传任何东西。
 
 ## 开始之前
@@ -17,7 +22,7 @@ audio8bit 会找出歌曲的旋律（以及它的和弦），并用复古的
 你需要两样东西：
 
 - **Python 3.9 或更新版本**
-- **ffmpeg**——一个用于读取和写入音频的免费工具。安装方法：
+- **ffmpeg**--一个用于读取和写入音频的免费工具。安装方法：
   `sudo apt install ffmpeg`（Linux）或 `brew install ffmpeg`（macOS）。
 
 ## 安装
@@ -27,7 +32,7 @@ pip install audio8bit
 ```
 
 > **第一次运行会比较慢：** 它会下载一个小型 AI 模型（约 80 MB），可能
-> 需要几分钟。这是正常的——之后的运行会更快。
+> 需要几分钟。这是正常的--之后的运行会更快。
 
 ## 使用方法
 
@@ -52,23 +57,23 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 
 | Option           | Default          | 它的作用                                       |
 | ---------------- | ---------------- | --------------------------------------------- |
-| `-i, --input`    | required         | 要转换的歌曲（mp3、wav、flac……）                |
+| `-i, --input`    | required         | 要转换的歌曲（mp3、wav、flac......）                |
 | `-o, --output`   | `output.<type>`  | 结果保存到哪里                                  |
 | `-f, --format`   | same as input    | 保存为不同的格式，例如 `ogg`、`wav`             |
 | `-s, --source`   | `auto`           | 从哪里提取曲调：`vocals`、`instrumental` 或 `auto` |
 | `-m, --method`   | `transcribe`     | 如何找出音符：`transcribe`（最佳）或 `pitch`（更快、更轻量） |
 | `-V, --voices`   | `chords`         | `chords`（带和声）或 `lead`（单一旋律线） |
 | `--transpose`    | `0`              | 移调，以半音为单位（例如 `5` 升高，`-5` 降低） |
-| `--bits`         | `8`              | 音频位深，1–8（越低越粗糙）                     |
+| `--bits`         | `8`              | 音频位深，1-8（越低越粗糙）                     |
 | `--rate`         | `22050`          | 采样率，单位 Hz（越低越复古）                   |
-| `--duty`         | `0.25`           | 脉冲波的音色，0–1                              |
+| `--duty`         | `0.25`           | 脉冲波的音色，0-1                              |
 
 ## 如果出了问题
 
-- **“ffmpeg not found”**——请安装 ffmpeg（见*开始之前*）。
-- **第一次运行好像卡住了**——它正在下载 AI 模型；请给它几分钟。
+- **“ffmpeg not found”**--请安装 ffmpeg（见*开始之前*）。
+- **第一次运行好像卡住了**--它正在下载 AI 模型；请给它几分钟。
   这只会发生一次。
-- **听起来不像原曲**——试试 `-s vocals` 或 `-s instrumental` 来
+- **听起来不像原曲**--试试 `-s vocals` 或 `-s instrumental` 来
   挑选正确的部分，或者用 `-V lead` 只保留旋律。
 
 ## 它的工作原理（选读）
@@ -79,4 +84,4 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 
 ## 许可证
 
-本项目采用 PolyForm Noncommercial License 许可 — 详见 [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) 文件。
+[Noncommercial](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)

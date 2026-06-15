@@ -1,6 +1,11 @@
 # audio8bit
 
-Turn any song into 8‑bit, video‑game‑style music — right from your terminal.
+[![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Downloads](https://img.shields.io/pypi/dm/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Python](https://img.shields.io/pypi/pyversions/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+
+Turn any song into 8-bit, video-game-style music - right from your terminal.
 audio8bit finds the song's melody (and its chords) and replays them with retro
 "chiptune" sounds, like an old game console.
 
@@ -9,7 +14,7 @@ audio8bit finds the song's melody (and its chords) and replays them with retro
 ## What it does
 
 - Give it a song, get back a chiptune version of it.
-- Works whether the song has **singing** or is **instrumental** — it picks the
+- Works whether the song has **singing** or is **instrumental** - it picks the
   tune automatically.
 - Everything runs on your own computer; nothing is uploaded.
 
@@ -18,7 +23,7 @@ audio8bit finds the song's melody (and its chords) and replays them with retro
 You need two things:
 
 - **Python 3.9 or newer**
-- **ffmpeg** — a free tool for reading and writing audio. Install it with
+- **ffmpeg** - a free tool for reading and writing audio. Install it with
   `sudo apt install ffmpeg` (Linux) or `brew install ffmpeg` (macOS).
 
 ## Install
@@ -28,7 +33,7 @@ pip install audio8bit
 ```
 
 > **First run is slow:** it downloads a small AI model (about 80 MB) and can
-> take a few minutes. That's normal — later runs are faster.
+> take a few minutes. That's normal - later runs are faster.
 
 ## Use it
 
@@ -53,31 +58,31 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 
 | Option           | Default          | What it does                                  |
 | ---------------- | ---------------- | --------------------------------------------- |
-| `-i, --input`    | required         | The song to convert (mp3, wav, flac, …)       |
+| `-i, --input`    | required         | The song to convert (mp3, wav, flac, ...)       |
 | `-o, --output`   | `output.<type>`  | Where to save the result                      |
 | `-f, --format`   | same as input    | Save as a different type, e.g. `ogg`, `wav`   |
 | `-s, --source`   | `auto`           | Where to take the tune: `vocals`, `instrumental`, or `auto` |
 | `-m, --method`   | `transcribe`     | How notes are found: `transcribe` (best) or `pitch` (faster, lighter) |
 | `-V, --voices`   | `chords`         | `chords` (with harmony) or `lead` (one melody line) |
 | `--transpose`    | `0`              | Shift the key, in semitones (e.g. `5` up, `-5` down) |
-| `--bits`         | `8`              | Sound resolution, 1–8 (lower = crunchier)     |
+| `--bits`         | `8`              | Sound resolution, 1-8 (lower = crunchier)     |
 | `--rate`         | `22050`          | Sample rate in Hz (lower = more retro)        |
-| `--duty`         | `0.25`           | Tone colour of the pulse wave, 0–1            |
+| `--duty`         | `0.25`           | Tone colour of the pulse wave, 0-1            |
 
 ## If something goes wrong
 
-- **"ffmpeg not found"** — install ffmpeg (see *Before you start*).
-- **The first run seems stuck** — it's downloading the AI model; give it a few
+- **"ffmpeg not found"** - install ffmpeg (see *Before you start*).
+- **The first run seems stuck** - it's downloading the AI model; give it a few
   minutes. It only happens once.
-- **It doesn't sound like the song** — try `-s vocals` or `-s instrumental` to
+- **It doesn't sound like the song** - try `-s vocals` or `-s instrumental` to
   pick the right part, or `-V lead` for just the melody.
 
 ## How it works (optional reading)
 
 1. Splits the song into parts (vocals, drums, bass, and the rest).
 2. Detects the actual notes being played in the part you chose.
-3. Replays those notes with simple 8‑bit "chip" sounds and saves the file.
+3. Replays those notes with simple 8-bit "chip" sounds and saves the file.
 
 ## License
 
-This project is licensed under the PolyForm Noncommercial License — see the [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) file for details.
+[Noncommercial](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)

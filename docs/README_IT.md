@@ -1,6 +1,11 @@
 # audio8bit
 
-Trasforma qualsiasi canzone in musica a 8 bit, in stile videogioco — direttamente
+[![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Downloads](https://img.shields.io/pypi/dm/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Python](https://img.shields.io/pypi/pyversions/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+
+Trasforma qualsiasi canzone in musica a 8 bit, in stile videogioco - direttamente
 dal tuo terminale. audio8bit trova la melodia della canzone (e i suoi accordi) e
 la riproduce con suoni "chiptune" retrò, come una vecchia console per videogiochi.
 
@@ -9,7 +14,7 @@ la riproduce con suoni "chiptune" retrò, come una vecchia console per videogioc
 ## Cosa fa
 
 - Dagli una canzone e ottieni in cambio una sua versione chiptune.
-- Funziona sia che la canzone abbia il **canto** sia che sia **strumentale** —
+- Funziona sia che la canzone abbia il **canto** sia che sia **strumentale** -
   sceglie la melodia automaticamente.
 - Tutto viene eseguito sul tuo computer; non viene caricato nulla online.
 
@@ -18,7 +23,7 @@ la riproduce con suoni "chiptune" retrò, come una vecchia console per videogioc
 Ti servono due cose:
 
 - **Python 3.9 o più recente**
-- **ffmpeg** — uno strumento gratuito per leggere e scrivere audio. Installalo con
+- **ffmpeg** - uno strumento gratuito per leggere e scrivere audio. Installalo con
   `sudo apt install ffmpeg` (Linux) o `brew install ffmpeg` (macOS).
 
 ## Installazione
@@ -28,7 +33,7 @@ pip install audio8bit
 ```
 
 > **La prima esecuzione è lenta:** scarica un piccolo modello di intelligenza
-> artificiale (circa 80 MB) e può richiedere qualche minuto. È normale — le
+> artificiale (circa 80 MB) e può richiedere qualche minuto. È normale - le
 > esecuzioni successive sono più veloci.
 
 ## Come usarlo
@@ -55,23 +60,23 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 
 | Option           | Default          | Cosa fa                                       |
 | ---------------- | ---------------- | --------------------------------------------- |
-| `-i, --input`    | required         | La canzone da convertire (mp3, wav, flac, …)  |
+| `-i, --input`    | required         | La canzone da convertire (mp3, wav, flac, ...)  |
 | `-o, --output`   | `output.<type>`  | Dove salvare il risultato                     |
 | `-f, --format`   | same as input    | Salva in un tipo diverso, es. `ogg`, `wav`    |
 | `-s, --source`   | `auto`           | Da dove prendere la melodia: `vocals`, `instrumental` o `auto` |
 | `-m, --method`   | `transcribe`     | Come si trovano le note: `transcribe` (migliore) o `pitch` (più veloce e leggero) |
 | `-V, --voices`   | `chords`         | `chords` (con armonia) o `lead` (una sola linea melodica) |
 | `--transpose`    | `0`              | Cambia la tonalità, in semitoni (es. `5` su, `-5` giù) |
-| `--bits`         | `8`              | Risoluzione del suono, 1–8 (più basso = più grezzo) |
+| `--bits`         | `8`              | Risoluzione del suono, 1-8 (più basso = più grezzo) |
 | `--rate`         | `22050`          | Frequenza di campionamento in Hz (più bassa = più retrò) |
-| `--duty`         | `0.25`           | Colore tonale dell'onda a impulsi, 0–1        |
+| `--duty`         | `0.25`           | Colore tonale dell'onda a impulsi, 0-1        |
 
 ## Se qualcosa va storto
 
-- **"ffmpeg not found"** — installa ffmpeg (vedi *Prima di iniziare*).
-- **La prima esecuzione sembra bloccata** — sta scaricando il modello di
+- **"ffmpeg not found"** - installa ffmpeg (vedi *Prima di iniziare*).
+- **La prima esecuzione sembra bloccata** - sta scaricando il modello di
   intelligenza artificiale; concedigli qualche minuto. Succede solo una volta.
-- **Non somiglia alla canzone** — prova `-s vocals` o `-s instrumental` per
+- **Non somiglia alla canzone** - prova `-s vocals` o `-s instrumental` per
   scegliere la parte giusta, oppure `-V lead` per avere solo la melodia.
 
 ## Come funziona (lettura facoltativa)
@@ -82,4 +87,4 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 
 ## Licenza
 
-Questo progetto è rilasciato sotto la PolyForm Noncommercial License — vedi il file [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE) per i dettagli.
+[Noncommercial](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
