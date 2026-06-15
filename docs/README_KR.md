@@ -3,7 +3,7 @@
 [![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 ![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
+[![License: noncommercial](https://img.shields.io/badge/license-noncommercial-orange.svg)](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
 ![Sound](https://img.shields.io/badge/sound-8--bit%20chiptune-ff69b4.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-brightgreen.svg)
 
@@ -87,6 +87,6 @@ audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
 2. 선택한 파트에서 실제로 연주되는 음들을 감지합니다.
 3. 그 음들을 단순한 8비트 "칩" 사운드로 다시 연주하고 파일로 저장합니다.
 
-## License
+## 라이선스
 
-MIT 라이선스
+비상업적 용도로는 무료입니다. 자세한 내용은 [LICENSE](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)를 참고하세요.

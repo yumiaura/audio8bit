@@ -1,21 +1,59 @@
-MIT License
+audio8bit License 0.0.0
 
 Copyright (c) 2026 Olya Yumi
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This license lets anyone use the software for free for noncommercial purposes,
+and reserves commercial use for the copyright holder.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Definitions
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+   "Software" means audio8bit and any files provided under this license,
+   including documentation and any works based on it.
+
+   "You" means the individual or organization exercising rights under this
+   license.
+
+   "Noncommercial purpose" means any purpose that is not primarily intended for
+   or directed toward commercial advantage or monetary compensation. Personal,
+   educational, academic, research, and other non-profit use is noncommercial.
+
+   "Commercial purpose" means any use primarily intended for or directed toward
+   commercial advantage or monetary compensation. This includes, without
+   limitation, using the Software in or for a paid product or service, in the
+   internal operations of a for-profit organization, or in paid client or
+   contract work.
+
+2. Noncommercial license
+
+   The copyright holder grants You a worldwide, royalty-free, non-exclusive,
+   non-transferable license to use, run, copy, modify, and distribute the
+   Software and works based on it, for any noncommercial purpose, provided You
+   comply with this license.
+
+3. Commercial use
+
+   This license grants no rights for any commercial purpose. To use the
+   Software for any commercial purpose, You must first obtain a separate, paid
+   commercial license from the copyright holder. Contact the copyright holder
+   to arrange one.
+
+4. Notices
+
+   You must keep this license and the copyright notice with all copies and
+   substantial portions of the Software, including in works based on it.
+
+5. Termination
+
+   If You breach this license, your rights under it end automatically. Your
+   rights may be reinstated if You promptly cure the breach after becoming
+   aware of it.
+
+6. No warranty and no liability
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. TO THE MAXIMUM EXTENT
+   PERMITTED BY LAW, THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM,
+   DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
+   OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE
+   USE OR OTHER DEALINGS IN THE SOFTWARE.
