@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "audio8bit"
-version = "0.0.0"
+version = "0.0.1"
 description = "Turn a song into an 8-bit / chiptune arrangement of its melody (vocal or instrumental)"
 readme = "README.md"
 requires-python = ">=3.9"
