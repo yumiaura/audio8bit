@@ -5,9 +5,9 @@
 [![Downloads](https://img.shields.io/pepy/dt/audio8bit?label=pypi%20%7C%20downloads&color=brightgreen)](https://pypi.org/project/audio8bit/)
 [![Python](https://img.shields.io/pypi/pyversions/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 
-Uma ferramenta de linha de comando que transforma qualquer musica em musica de 8 bits, no estilo de videogame. Ela encontra a melodia (a partir dos vocais ou dos instrumentos) e a reproduz com sons retro de "chiptune", como um console de jogos antigo. Tudo roda localmente.
-
 [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | **[Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md)** | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
+
+Uma ferramenta de linha de comando que transforma qualquer musica em musica de 8 bits, no estilo de videogame. Ela encontra a melodia (a partir dos vocais ou dos instrumentos) e a reproduz com sons retro de "chiptune", como um console de jogos antigo. Tudo roda localmente.
 
 ### Requisitos
 

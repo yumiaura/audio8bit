@@ -5,9 +5,9 @@
 [![Downloads](https://img.shields.io/pepy/dt/audio8bit?label=pypi%20%7C%20downloads&color=brightgreen)](https://pypi.org/project/audio8bit/)
 [![Python](https://img.shields.io/pypi/pyversions/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 
-어떤 곡이든 8비트 비디오 게임 스타일의 음악으로 바꿔주는 명령줄 도구입니다. (보컬이나 악기에서) 멜로디를 찾아내어 옛날 게임기처럼 레트로한 "칩튠" 사운드로 다시 연주합니다. 모든 작업은 로컬에서 실행됩니다.
-
 [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | **[한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)**
+
+어떤 곡이든 8비트 비디오 게임 스타일의 음악으로 바꿔주는 명령줄 도구입니다. (보컬이나 악기에서) 멜로디를 찾아내어 옛날 게임기처럼 레트로한 "칩튠" 사운드로 다시 연주합니다. 모든 작업은 로컬에서 실행됩니다.
 
 ### 요구 사항
 
