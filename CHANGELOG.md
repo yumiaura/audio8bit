@@ -8,10 +8,9 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
-- Reformatted the README and all 10 translations in the style of
-  `wachawo/checkcrontab`: an H2 title with a tagline, a badge row, the language
-  bar, and `###` sections (Requirements / Installation / Usage / Command Line
-  Options / Features / License).
+- Reformatted the README and all 10 translations: an H2 title with a tagline, a
+  badge row, the language bar, and `###` sections (Requirements / Installation /
+  Usage / Command Line Options / Features / License).
 
 ## 0.0.0 - 2026-06-15
 
