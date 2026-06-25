@@ -1,92 +1,85 @@
-# audio8bit
+## audio8bit - convierte cualquier cancion en musica chiptune de 8 bits
 
 [![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
-[![Downloads](https://img.shields.io/pypi/dm/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Downloads](https://img.shields.io/pepy/dt/audio8bit?label=pypi%20%7C%20downloads&color=brightgreen)](https://pypi.org/project/audio8bit/)
 [![Python](https://img.shields.io/pypi/pyversions/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 
-Convierte cualquier canción en música de 8 bits, al estilo de los videojuegos,
-directamente desde tu terminal. audio8bit encuentra la melodía de la canción (y
-sus acordes) y la vuelve a tocar con sonidos retro "chiptune", como los de una
-vieja consola de videojuegos.
+Una herramienta de linea de comandos que convierte cualquier cancion en musica de 8 bits, al estilo de los videojuegos. Encuentra la melodia (de la voz o de los instrumentos) y la vuelve a tocar con sonidos retro "chiptune", como una vieja consola de videojuegos. Todo se ejecuta localmente.
 
 [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | **[Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md)** | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
-## Qué hace
+### Requisitos
 
-- Dale una canción y recibirás una versión chiptune de ella.
-- Funciona tanto si la canción tiene **voz** como si es **instrumental**: elige
-  la melodía automáticamente.
-- Todo se ejecuta en tu propia computadora; no se sube nada.
-
-## Antes de empezar
-
-Necesitas dos cosas:
-
-- **Python 3.9 o más reciente**
-- **ffmpeg**: una herramienta gratuita para leer y escribir audio. Instálala con
+- **Python 3.9 o mas reciente**
+- **ffmpeg** en tu `PATH` (incluye `ffmpeg` y `ffprobe`). Instalalo con
   `sudo apt install ffmpeg` (Linux) o `brew install ffmpeg` (macOS).
 
-## Instalación
+### Instalacion
 
 ```bash
 pip install audio8bit
 ```
 
-> **La primera ejecución es lenta:** descarga un pequeño modelo de IA (unos
-> 80 MB) y puede tardar unos minutos. Es normal: las siguientes ejecuciones son
-> más rápidas.
-
-## Cómo usarlo
+O desde GitHub:
 
 ```bash
+pip install git+https://github.com/yumiaura/audio8bit.git
+```
+
+> **La primera ejecucion es lenta:** descarga un pequeno modelo de IA (unos 80 MB) y puede tardar
+> unos minutos. Es normal; las ejecuciones posteriores son mas rapidas.
+
+### Uso
+
+```bash
+# Convierte una cancion (detecta automaticamente voz o instrumental)
 audio8bit -i song.mp3
+
+# Solo la melodia principal, sin acordes
+audio8bit -i song.mp3 -V lead
+
+# Toma la melodia del canto o de los instrumentos
+audio8bit -i song.mp3 -s vocals
+audio8bit -i song.mp3 -s instrumental
+
+# Guardar en un formato diferente
+audio8bit -i song.mp3 -f ogg
+
+# Reproducirla 5 semitonos mas alta
+audio8bit -i song.mp3 --transpose 5
+
+# Mostrar ayuda y version
+audio8bit --help
+audio8bit --version
 ```
 
-Esto crea `output.mp3` en la carpeta actual. Eso es todo. Cada ejecución también
-imprime un breve informe de calidad para que puedas ver que el resultado salió
-limpio.
+### Opciones de linea de comandos
 
-¿Quieres algo diferente? Estos son los ajustes más comunes:
+- `-i, --input` - archivo de audio de entrada, obligatorio (cualquier formato que ffmpeg pueda leer)
+- `-o, --output` - ruta de salida (predeterminado: `output.<ext>`)
+- `-f, --format` - formato de salida, p. ej. `ogg`, `wav` (predeterminado: igual que la entrada)
+- `-s, --source` - fuente de la melodia: `vocals`, `instrumental`, `auto` (predeterminado: `auto`)
+- `-m, --method` - busqueda de notas: `transcribe` o `pitch` (predeterminado: `transcribe`)
+- `-V, --voices` - `chords` (con armonia) o `lead` (una sola linea) (predeterminado: `chords`)
+- `--transpose` - cambio de tonalidad en semitonos (predeterminado: `0`)
+- `--bits` - profundidad de bits, 1-8, mas bajo es mas crujiente (predeterminado: `8`)
+- `--rate` - frecuencia de muestreo en Hz, mas baja es mas retro (predeterminado: `22050`)
+- `--duty` - ciclo de trabajo de la onda de pulso, 0-1 (predeterminado: `0.25`)
+- `--version` - mostrar la version
 
-```bash
-audio8bit -i song.mp3 -V lead          # just the main melody, no chords
-audio8bit -i song.mp3 -s vocals        # follow the singing
-audio8bit -i song.mp3 -s instrumental  # follow the instruments
-audio8bit -i song.mp3 --transpose 5    # play it 5 semitones higher
-audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
-```
+Codigos de salida: `0` exito, `1` error de conversion, `2` argumentos incorrectos.
 
-## Todas las opciones
+### Caracteristicas
 
-| Option           | Default          | Qué hace                                       |
-| ---------------- | ---------------- | --------------------------------------------- |
-| `-i, --input`    | required         | La canción a convertir (mp3, wav, flac, ...)     |
-| `-o, --output`   | `output.<type>`  | Dónde guardar el resultado                      |
-| `-f, --format`   | same as input    | Guardar como otro tipo, p. ej. `ogg`, `wav`    |
-| `-s, --source`   | `auto`           | De dónde tomar la melodía: `vocals`, `instrumental` o `auto` |
-| `-m, --method`   | `transcribe`     | Cómo se encuentran las notas: `transcribe` (mejor) o `pitch` (más rápido y ligero) |
-| `-V, --voices`   | `chords`         | `chords` (con armonía) o `lead` (una sola línea melódica) |
-| `--transpose`    | `0`              | Cambia la tonalidad, en semitonos (p. ej. `5` arriba, `-5` abajo) |
-| `--bits`         | `8`              | Resolución del sonido, 1-8 (más bajo = más crujiente) |
-| `--rate`         | `22050`          | Frecuencia de muestreo en Hz (más baja = más retro) |
-| `--duty`         | `0.25`           | Color del tono de la onda de pulso, 0-1        |
+- Funciona con canciones **vocales** e **instrumentales** - elige la fuente de la melodia automaticamente.
+- **Transcripcion polifonica** (basic-pitch) conserva los acordes y el bajo, o los reduce a una sola linea melodica.
+- Separacion de fuentes con **Demucs**, determinista para que la misma entrada siempre de el mismo resultado.
+- Sintesis chiptune sin aliasing con dinamica de sonoridad y un limitador suave.
+- Transposicion de tonalidad y profundidad de bits, frecuencia de muestreo y tono de pulso ajustables.
+- Salida PCM de 8 bits como WAV, o cualquier formato que ffmpeg pueda escribir.
+- Un informe de calidad despues de cada ejecucion, y todo se ejecuta en tu propia maquina.
 
-## Si algo sale mal
-
-- **"ffmpeg not found"**: instala ffmpeg (consulta *Antes de empezar*).
-- **La primera ejecución parece atascada**: está descargando el modelo de IA;
-  dale unos minutos. Solo ocurre una vez.
-- **No suena como la canción**: prueba con `-s vocals` o `-s instrumental` para
-  elegir la parte correcta, o `-V lead` para obtener solo la melodía.
-
-## Cómo funciona (lectura opcional)
-
-1. Divide la canción en partes (voz, batería, bajo y el resto).
-2. Detecta las notas reales que se tocan en la parte que elegiste.
-3. Vuelve a tocar esas notas con sencillos sonidos "chip" de 8 bits y guarda el
-   archivo.
-
-## Licencia
+### Licencia
 
 [Noncommercial](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)

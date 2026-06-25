@@ -1,88 +1,85 @@
-# audio8bit
+## audio8bit - あらゆる曲を8ビットのチップチューン音楽に変換
 
 [![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
-[![Downloads](https://img.shields.io/pypi/dm/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Downloads](https://img.shields.io/pepy/dt/audio8bit?label=pypi%20%7C%20downloads&color=brightgreen)](https://pypi.org/project/audio8bit/)
 [![Python](https://img.shields.io/pypi/pyversions/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 
-どんな曲でも、ターミナルから 8 ビットのゲーム風音楽に変えられます。
-audio8bit は曲のメロディー（とコード）を見つけ出し、昔のゲーム機のような
-レトロな「チップチューン」サウンドで再生します。
+あらゆる曲を8ビットのテレビゲーム風音楽に変換するコマンドラインツールです。(ボーカルや楽器から)メロディを見つけ出し、昔のゲーム機のようなレトロな「チップチューン」サウンドで再生します。すべてローカルで動作します。
 
-**[日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md)** | [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
+[English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | [中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md) | **[日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md)** | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
-## できること
+### 動作要件
 
-- 曲を渡すと、そのチップチューン版が返ってきます。
-- 曲に**歌**が入っていても、**インストゥルメンタル**でも動作します。メロディーは
-  自動で選び取ります。
-- すべてあなたのパソコン上で動作し、何もアップロードされません。
+- **Python 3.9 以上**
+- `PATH` 上に **ffmpeg** があること(`ffmpeg` と `ffprobe` が同梱されています)。
+  `sudo apt install ffmpeg`(Linux)または `brew install ffmpeg`(macOS)でインストールしてください。
 
-## 始める前に
-
-次の 2 つが必要です。
-
-- **Python 3.9 以降**
-- **ffmpeg** - 音声の読み書きに使える無料ツールです。`sudo apt install ffmpeg`
-  （Linux）または `brew install ffmpeg`（macOS）でインストールしてください。
-
-## インストール
+### インストール
 
 ```bash
 pip install audio8bit
 ```
 
-> **初回の実行は遅いです。** 小さな AI モデル（約 80 MB）をダウンロードするため、
-> 数分かかることがあります。これは正常な動作で、2 回目以降は速くなります。
-
-## 使い方
+または GitHub から:
 
 ```bash
+pip install git+https://github.com/yumiaura/audio8bit.git
+```
+
+> **初回の実行は遅いです:** 小さなAIモデル(約80 MB)をダウンロードするため、
+> 数分かかることがあります。これは正常な動作で、以降の実行は速くなります。
+
+### 使い方
+
+```bash
+# 曲を変換する(ボーカルか楽器かを自動検出)
 audio8bit -i song.mp3
+
+# メインメロディだけ、コードなし
+audio8bit -i song.mp3 -V lead
+
+# 歌から、または楽器からメロディを取り出す
+audio8bit -i song.mp3 -s vocals
+audio8bit -i song.mp3 -s instrumental
+
+# 別の形式で保存する
+audio8bit -i song.mp3 -f ogg
+
+# 5半音高く演奏する
+audio8bit -i song.mp3 --transpose 5
+
+# ヘルプとバージョンを表示する
+audio8bit --help
+audio8bit --version
 ```
 
-これでカレントフォルダーに `output.mp3` が作られます。それだけです。実行ごとに
-短い品質レポートも表示されるので、結果がきれいに仕上がったか確認できます。
+### コマンドラインオプション
 
-別の仕上がりにしたいですか？ よく使う調整は次のとおりです。
+- `-i, --input` - 入力オーディオファイル、必須(ffmpeg が読み込めるあらゆる形式)
+- `-o, --output` - 出力先パス(デフォルト: `output.<ext>`)
+- `-f, --format` - 出力形式、例: `ogg`, `wav`(デフォルト: 入力と同じ)
+- `-s, --source` - メロディの取得元: `vocals`, `instrumental`, `auto`(デフォルト: `auto`)
+- `-m, --method` - 音符の検出方法: `transcribe` または `pitch`(デフォルト: `transcribe`)
+- `-V, --voices` - `chords`(ハーモニーあり)または `lead`(単旋律)(デフォルト: `chords`)
+- `--transpose` - 半音単位のキーシフト(デフォルト: `0`)
+- `--bits` - ビット深度、1-8、低いほど荒い音に(デフォルト: `8`)
+- `--rate` - サンプルレート(Hz)、低いほどレトロに(デフォルト: `22050`)
+- `--duty` - パルス波のデューティ比、0-1(デフォルト: `0.25`)
+- `--version` - バージョンを表示する
 
-```bash
-audio8bit -i song.mp3 -V lead          # メインメロディーだけ、コードなし
-audio8bit -i song.mp3 -s vocals        # 歌に合わせる
-audio8bit -i song.mp3 -s instrumental  # 楽器に合わせる
-audio8bit -i song.mp3 --transpose 5    # 5 半音高く演奏する
-audio8bit -i song.mp3 -f ogg           # .mp3 ではなく .ogg で保存する
-```
+終了コード: `0` 成功、`1` 変換エラー、`2` 引数の誤り。
 
-## すべてのオプション
+### 機能
 
-| Option           | Default          | 働き                                          |
-| ---------------- | ---------------- | --------------------------------------------- |
-| `-i, --input`    | required         | 変換する曲（mp3, wav, flac, ...）               |
-| `-o, --output`   | `output.<type>`  | 結果の保存先                                  |
-| `-f, --format`   | same as input    | 別の形式で保存する。例: `ogg`、`wav`          |
-| `-s, --source`   | `auto`           | メロディーを取り出す場所: `vocals`、`instrumental`、または `auto` |
-| `-m, --method`   | `transcribe`     | 音符の見つけ方: `transcribe`（最良）または `pitch`（高速・軽量） |
-| `-V, --voices`   | `chords`         | `chords`（ハーモニーあり）または `lead`（メロディー 1 本のみ） |
-| `--transpose`    | `0`              | キーを半音単位でずらす（例: `5` で上、`-5` で下） |
-| `--bits`         | `8`              | 音の解像度、1〜8（小さいほど荒い音に）        |
-| `--rate`         | `22050`          | サンプルレート（Hz、低いほどレトロに）        |
-| `--duty`         | `0.25`           | パルス波の音色、0〜1                          |
+- **ボーカル**曲と**インストゥルメンタル**の両方に対応 - メロディの取得元を自動で選びます。
+- **ポリフォニックなトランスクリプション**(basic-pitch)により、コードやベースを保持したり、単一のリード旋律に減らしたりできます。
+- **Demucs** による音源分離は決定論的なので、同じ入力からは常に同じ結果が得られます。
+- エイリアスのないチップチューン合成に、ラウドネスのダイナミクスと滑らかなリミッターを備えています。
+- キーの移調、ビット深度、サンプルレート、パルス音の調整が可能です。
+- 8ビット PCM の WAV 出力、または ffmpeg が書き込めるあらゆる形式に対応します。
+- 実行ごとに品質レポートを生成し、すべてが自分のマシン上で動作します。
 
-## うまくいかないとき
-
-- **「ffmpeg not found」** - ffmpeg をインストールしてください（*始める前に* を参照）。
-- **初回の実行が止まっているように見える** - AI モデルをダウンロード中です。数分
-  待ってください。これは一度だけ起こります。
-- **元の曲のように聞こえない** - `-s vocals` または `-s instrumental` で正しい
-  パートを選ぶか、メロディーだけにしたい場合は `-V lead` を試してください。
-
-## しくみ（読みたい人向け）
-
-1. 曲をパート（ボーカル、ドラム、ベース、その他）に分けます。
-2. 選んだパートで実際に演奏されている音符を検出します。
-3. それらの音符をシンプルな 8 ビットの「チップ」サウンドで再生し、ファイルに保存します。
-
-## ライセンス
+### ライセンス
 
 [Noncommercial](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)

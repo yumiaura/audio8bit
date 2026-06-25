@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## 0.0.1 - 2026-06-25
+
+### Changed
+
+- Reformatted the README and all 10 translations in the style of
+  `wachawo/checkcrontab`: an H2 title with a tagline, a badge row, the language
+  bar, and `###` sections (Requirements / Installation / Usage / Command Line
+  Options / Features / License).
+
 ## 0.0.0 - 2026-06-15
 
 First release. audio8bit turns a song into an 8-bit chiptune arrangement of its

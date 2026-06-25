@@ -1,87 +1,85 @@
-# audio8bit
+## audio8bit - 将任意歌曲变成 8 位芯片音乐
 
 [![CI](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml/badge.svg)](https://github.com/yumiaura/audio8bit/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/audio8bit.svg)](https://pypi.org/project/audio8bit/)
-[![Downloads](https://img.shields.io/pypi/dm/audio8bit.svg)](https://pypi.org/project/audio8bit/)
+[![Downloads](https://img.shields.io/pepy/dt/audio8bit?label=pypi%20%7C%20downloads&color=brightgreen)](https://pypi.org/project/audio8bit/)
 [![Python](https://img.shields.io/pypi/pyversions/audio8bit.svg)](https://pypi.org/project/audio8bit/)
 
-把任何一首歌变成 8 位、电子游戏风格的音乐--直接在你的终端里完成。
-audio8bit 会找出歌曲的旋律（以及它的和弦），并用复古的
-“chiptune”（芯片音乐）音色重新演奏出来，就像一台老式游戏机一样。
+一个命令行工具，可将任意歌曲变成 8 位的电子游戏风格音乐。它会找出旋律（来自人声或乐器），并用复古的“芯片音乐”音色重新演奏，就像一台老式游戏机一样。一切都在本地运行。
 
 [English](https://github.com/yumiaura/audio8bit/blob/main/README.md) | [Español](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ES.md) | [Português](https://github.com/yumiaura/audio8bit/blob/main/docs/README_PT.md) | [Français](https://github.com/yumiaura/audio8bit/blob/main/docs/README_FR.md) | [Deutsch](https://github.com/yumiaura/audio8bit/blob/main/docs/README_DE.md) | [Italiano](https://github.com/yumiaura/audio8bit/blob/main/docs/README_IT.md) | [Русский](https://github.com/yumiaura/audio8bit/blob/main/docs/README_RU.md) | **[中文](https://github.com/yumiaura/audio8bit/blob/main/docs/README_ZH.md)** | [日本語](https://github.com/yumiaura/audio8bit/blob/main/docs/README_JA.md) | [हिन्दी](https://github.com/yumiaura/audio8bit/blob/main/docs/README_HI.md) | [한국어](https://github.com/yumiaura/audio8bit/blob/main/docs/README_KR.md)
 
-## 它能做什么
+### 系统要求
 
-- 给它一首歌，它会返回这首歌的 chiptune 版本。
-- 无论歌曲是**有人声演唱**还是**纯器乐**都能处理--它会自动挑选出曲调。
-- 一切都在你自己的电脑上运行；不会上传任何东西。
+- **Python 3.9 或更高版本**
+- **ffmpeg** 位于你的 `PATH` 中（它附带 `ffmpeg` 和 `ffprobe`）。使用
+  `sudo apt install ffmpeg`（Linux）或 `brew install ffmpeg`（macOS）安装。
 
-## 开始之前
-
-你需要两样东西：
-
-- **Python 3.9 或更新版本**
-- **ffmpeg**--一个用于读取和写入音频的免费工具。安装方法：
-  `sudo apt install ffmpeg`（Linux）或 `brew install ffmpeg`（macOS）。
-
-## 安装
+### 安装
 
 ```bash
 pip install audio8bit
 ```
 
-> **第一次运行会比较慢：** 它会下载一个小型 AI 模型（约 80 MB），可能
-> 需要几分钟。这是正常的--之后的运行会更快。
-
-## 使用方法
+或从 GitHub 安装：
 
 ```bash
+pip install git+https://github.com/yumiaura/audio8bit.git
+```
+
+> **首次运行较慢：** 它会下载一个小型 AI 模型（约 80 MB），可能需要
+> 几分钟。这是正常现象；后续运行会更快。
+
+### 用法
+
+```bash
+# Convert a song (auto-detects vocal or instrumental)
 audio8bit -i song.mp3
+
+# Just the main melody, no chords
+audio8bit -i song.mp3 -V lead
+
+# Take the tune from the singing or from the instruments
+audio8bit -i song.mp3 -s vocals
+audio8bit -i song.mp3 -s instrumental
+
+# Save as a different format
+audio8bit -i song.mp3 -f ogg
+
+# Play it 5 semitones higher
+audio8bit -i song.mp3 --transpose 5
+
+# Show help and version
+audio8bit --help
+audio8bit --version
 ```
 
-这会在当前文件夹里生成 `output.mp3`。就这么简单。每次运行还会
-打印一份简短的质量报告，让你看到结果是否干净。
+### 命令行选项
 
-想要不一样的效果？下面是最常用的几种调整：
+- `-i, --input` - 输入音频文件，必填（ffmpeg 能读取的任意格式）
+- `-o, --output` - 输出路径（默认：`output.<ext>`）
+- `-f, --format` - 输出格式，例如 `ogg`、`wav`（默认：与输入相同）
+- `-s, --source` - 旋律来源：`vocals`、`instrumental`、`auto`（默认：`auto`）
+- `-m, --method` - 音符识别：`transcribe` 或 `pitch`（默认：`transcribe`）
+- `-V, --voices` - `chords`（带和声）或 `lead`（单声部）（默认：`chords`）
+- `--transpose` - 以半音为单位的调式移动（默认：`0`）
+- `--bits` - 位深度，1-8，越低越粗糙（默认：`8`）
+- `--rate` - 采样率（Hz），越低越复古（默认：`22050`）
+- `--duty` - 脉冲波占空比，0-1（默认：`0.25`）
+- `--version` - 显示版本
 
-```bash
-audio8bit -i song.mp3 -V lead          # just the main melody, no chords
-audio8bit -i song.mp3 -s vocals        # follow the singing
-audio8bit -i song.mp3 -s instrumental  # follow the instruments
-audio8bit -i song.mp3 --transpose 5    # play it 5 semitones higher
-audio8bit -i song.mp3 -f ogg           # save as .ogg instead of .mp3
-```
+退出码：`0` 成功，`1` 转换错误，`2` 参数错误。
 
-## 所有选项
+### 功能特性
 
-| Option           | Default          | 它的作用                                       |
-| ---------------- | ---------------- | --------------------------------------------- |
-| `-i, --input`    | required         | 要转换的歌曲（mp3、wav、flac......）                |
-| `-o, --output`   | `output.<type>`  | 结果保存到哪里                                  |
-| `-f, --format`   | same as input    | 保存为不同的格式，例如 `ogg`、`wav`             |
-| `-s, --source`   | `auto`           | 从哪里提取曲调：`vocals`、`instrumental` 或 `auto` |
-| `-m, --method`   | `transcribe`     | 如何找出音符：`transcribe`（最佳）或 `pitch`（更快、更轻量） |
-| `-V, --voices`   | `chords`         | `chords`（带和声）或 `lead`（单一旋律线） |
-| `--transpose`    | `0`              | 移调，以半音为单位（例如 `5` 升高，`-5` 降低） |
-| `--bits`         | `8`              | 音频位深，1-8（越低越粗糙）                     |
-| `--rate`         | `22050`          | 采样率，单位 Hz（越低越复古）                   |
-| `--duty`         | `0.25`           | 脉冲波的音色，0-1                              |
+- 同时支持**人声**歌曲和**纯乐器**作品 - 自动选择旋律来源。
+- **复音转录**（basic-pitch）保留和弦与贝斯，或将其简化为单一主旋律线。
+- 使用 **Demucs** 进行声源分离，结果是确定性的，因此相同的输入始终给出相同的结果。
+- 无混叠的芯片音乐合成，带有响度动态和平滑的限幅器。
+- 调式移调，以及可调的位深度、采样率和脉冲音色。
+- 8 位 PCM 输出为 WAV，或 ffmpeg 能写入的任意格式。
+- 每次运行后都会生成质量报告，且一切都在你自己的机器上运行。
 
-## 如果出了问题
-
-- **“ffmpeg not found”**--请安装 ffmpeg（见*开始之前*）。
-- **第一次运行好像卡住了**--它正在下载 AI 模型；请给它几分钟。
-  这只会发生一次。
-- **听起来不像原曲**--试试 `-s vocals` 或 `-s instrumental` 来
-  挑选正确的部分，或者用 `-V lead` 只保留旋律。
-
-## 它的工作原理（选读）
-
-1. 把歌曲拆分成若干部分（人声、鼓、贝斯，以及其余部分）。
-2. 检测你所选部分中实际演奏的音符。
-3. 用简单的 8 位“芯片”音色重新演奏这些音符，并保存文件。
-
-## 许可证
+### 许可证
 
 [Noncommercial](https://github.com/yumiaura/audio8bit/blob/main/LICENSE)
