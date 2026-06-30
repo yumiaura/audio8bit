@@ -66,6 +66,8 @@ audio8bit --version
 - `--bits` - profundidade de bits, 1-8, quanto menor mais granulado (padrao: `8`)
 - `--rate` - taxa de amostragem em Hz, quanto menor mais retro (padrao: `22050`)
 - `--duty` - ciclo de trabalho da onda de pulso, 0-1 (padrao: `0.25`)
+- `--no-cache` - não ler nem gravar stems do Demucs em cache
+- `--cache-dir` - diretório para os stems em cache (padrão: `~/.cache/audio8bit`, ou `$AUDIO8BIT_CACHE_DIR`)
 - `--version` - mostra a versao
 
 Codigos de saida: `0` sucesso, `1` erro de conversao, `2` argumentos invalidos.

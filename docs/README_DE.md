@@ -66,6 +66,8 @@ audio8bit --version
 - `--bits` - Bittiefe, 1-8, niedriger ist knuspriger (Standard: `8`)
 - `--rate` - Abtastrate in Hz, niedriger ist nostalgischer (Standard: `22050`)
 - `--duty` - Tastverhaeltnis der Pulswelle, 0-1 (Standard: `0.25`)
+- `--no-cache` - zwischengespeicherte Demucs-Stems weder lesen noch schreiben
+- `--cache-dir` - Verzeichnis für zwischengespeicherte Stems (Standard: `~/.cache/audio8bit`, oder `$AUDIO8BIT_CACHE_DIR`)
 - `--version` - Version anzeigen
 
 Exit-Codes: `0` Erfolg, `1` Konvertierungsfehler, `2` ungueltige Argumente.
