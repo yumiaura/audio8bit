@@ -66,6 +66,8 @@ audio8bit --version
 - `--bits` - 位深度，1-8，越低越粗糙（默认：`8`）
 - `--rate` - 采样率（Hz），越低越复古（默认：`22050`）
 - `--duty` - 脉冲波占空比，0-1（默认：`0.25`）
+- `--no-cache` - 不读取也不写入缓存的 Demucs 分轨
+- `--cache-dir` - 缓存分轨的目录（默认：`~/.cache/audio8bit`，或 `$AUDIO8BIT_CACHE_DIR`）
 - `--version` - 显示版本
 
 退出码：`0` 成功，`1` 转换错误，`2` 参数错误。

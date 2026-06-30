@@ -66,6 +66,8 @@ audio8bit --version
 - `--bits` - profondita' di bit, 1-8, piu' basso e' piu' grezzo (predefinito: `8`)
 - `--rate` - frequenza di campionamento in Hz, piu' bassa e' piu' retro (predefinito: `22050`)
 - `--duty` - duty cycle dell'onda a impulsi, 0-1 (predefinito: `0.25`)
+- `--no-cache` - non leggere né scrivere gli stem di Demucs nella cache
+- `--cache-dir` - directory per gli stem in cache (predefinito: `~/.cache/audio8bit`, oppure `$AUDIO8BIT_CACHE_DIR`)
 - `--version` - mostra la versione
 
 Codici di uscita: `0` successo, `1` errore di conversione, `2` argomenti errati.
