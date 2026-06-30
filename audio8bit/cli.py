@@ -78,6 +78,15 @@ def build_parser():
         help=f"pulse-wave duty cycle, 0-1 (default: {DEFAULT_DUTY})",
     )
     parser.add_argument(
+        "--no-cache", action="store_true",
+        help="do not read or write cached Demucs stems",
+    )
+    parser.add_argument(
+        "--cache-dir",
+        help="directory for cached stems "
+             "(default: ~/.cache/audio8bit, or $AUDIO8BIT_CACHE_DIR)",
+    )
+    parser.add_argument(
         "--version", action="version", version=f"audio8bit {version}",
     )
     return parser
@@ -98,6 +107,8 @@ def main(argv=None):
             source=args.source,
             method=args.method,
             voices=args.voices,
+            use_cache=not args.no_cache,
+            cache_dir=args.cache_dir,
         )
     except ConversionError as error:
         print(f"audio8bit: {error}", file=sys.stderr)

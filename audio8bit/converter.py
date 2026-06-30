@@ -39,6 +39,8 @@ from pathlib import Path
 
 import numpy as np
 
+from audio8bit.cache import load_cached_stems, save_cached_stems
+
 DEMUCS_MODEL = "htdemucs"
 SEPARATION_SEED = 0
 HOP = 512
@@ -162,12 +164,25 @@ def midi_to_hz(midi):
     return 440.0 * 2.0 ** ((np.asarray(midi, dtype=np.float64) - 69.0) / 12.0)
 
 
-def separate_sources(path):
+def separate_sources(path, use_cache=True, cache_dir=None):
     """Split a song into its Demucs stems.
 
     Returns ``(stems, sample_rate)`` where ``stems`` maps each source name
     (``drums``, ``bass``, ``other``, ``vocals``) to a mono float32 signal.
+
+    When ``use_cache`` is set, the separated stems are cached on disk, keyed by
+    the input file's hash and the Demucs settings, so re-running the same track
+    skips the slow separation. ``cache_dir`` overrides the cache location.
     """
+    shifts = 0
+    if use_cache:
+        cached = load_cached_stems(
+            Path(path), demucs_model=DEMUCS_MODEL,
+            separation_seed=SEPARATION_SEED, shifts=shifts, cache_dir=cache_dir,
+        )
+        if cached is not None:
+            return cached
+
     try:
         import torch
         from demucs.apply import apply_model
@@ -193,7 +208,7 @@ def separate_sources(path):
     torch.manual_seed(SEPARATION_SEED)
     with torch.no_grad():
         sources = apply_model(
-            model, wav[None], device="cpu", progress=False, shifts=0,
+            model, wav[None], device="cpu", progress=False, shifts=shifts,
         )[0]
     sources = sources * reference.std() + reference.mean()
 
@@ -201,7 +216,18 @@ def separate_sources(path):
         name: sources[index].mean(0).cpu().numpy().astype(np.float32)
         for index, name in enumerate(model.sources)
     }
-    return stems, int(model.samplerate)
+    sample_rate = int(model.samplerate)
+
+    if use_cache:
+        try:
+            save_cached_stems(
+                Path(path), stems, sample_rate, demucs_model=DEMUCS_MODEL,
+                separation_seed=SEPARATION_SEED, shifts=shifts, cache_dir=cache_dir,
+            )
+        except OSError:
+            pass
+
+    return stems, sample_rate
 
 
 def signal_rms(signal):
@@ -1151,13 +1177,15 @@ def lead_from_events(events, transpose):
 
 def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
             rate=DEFAULT_RATE, duty=DEFAULT_DUTY, transpose=DEFAULT_TRANSPOSE,
-            source=DEFAULT_SOURCE, method=DEFAULT_METHOD, voices=DEFAULT_VOICES):
+            source=DEFAULT_SOURCE, method=DEFAULT_METHOD, voices=DEFAULT_VOICES,
+            use_cache=True, cache_dir=None):
     """Convert a song into a chiptune arrangement and write it to disk.
 
     ``source`` chooses the stem (``vocals``/``instrumental``/``auto``).
     ``method`` chooses how notes are found (``transcribe``/``pitch``).
     ``voices`` (transcribe only) chooses ``chords`` (every note, harmony kept)
     or ``lead`` (a single melody line).
+    ``use_cache``/``cache_dir`` control on-disk caching of the Demucs stems.
 
     Returns (destination_path, quality_ok, quality_report_lines).
     """
@@ -1189,7 +1217,7 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
 
     destination = resolve_output_path(origin, output_path, format)
 
-    stems, sample_rate = separate_sources(origin)
+    stems, sample_rate = separate_sources(origin, use_cache=use_cache, cache_dir=cache_dir)
     signal, fmin, fmax, picked = select_melody(stems, source)
     info = [f"melody source: {picked}", f"method: {method}"]
 
