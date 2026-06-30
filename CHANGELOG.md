@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## 0.0.2 - 2026-06-30
+
+### Added
+
+- On-disk caching of the separated Demucs stems: re-running the same track
+  reuses the stems and skips the slow separation step. Keyed by the input file
+  hash plus the Demucs model/seed/shift settings; stored under
+  `~/.cache/audio8bit` (override with `--cache-dir` or `$AUDIO8BIT_CACHE_DIR`).
+  New `--no-cache` and `--cache-dir` flags.
+
 ## 0.0.1 - 2026-06-25
 
 ### Changed
