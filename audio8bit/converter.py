@@ -170,6 +170,14 @@ LEAD_VIBRATO_MIN_SECONDS = 0.3
 CHORD_PAD_VOICE_GAIN = 0.22
 HARMONY_DUCK = 0.35
 DUCK_SMOOTH_SECONDS = 0.03
+# Production polish: a tempo-synced echo on the melodic bus (lead + harmony;
+# bass and drums stay dry so the low end keeps its punch), beat accents on the
+# nes lead/drums, then a loudness normalisation to TARGET_RMS and a seeded
+# TPDF dither before the bit quantiser (removes the gritty quantisation hash).
+BAND_ECHO_FEEDBACK = 0.25
+ECHO_FALLBACK_SECONDS = 0.25
+BEAT_ACCENT = 1.15
+TARGET_RMS = 0.16
 DRUM_SNAP_SECONDS = 0.12
 # Band/nes note hygiene: transcription errors are the top blocker to a melodic
 # result. Events are cleaned (drop short-and-quiet litter, bridge legato gaps)
@@ -1014,6 +1022,19 @@ def snap_drums(drum_hits, grid, snap_seconds=DRUM_SNAP_SECONDS):
     return snapped
 
 
+def accent_drums(drum_hits, beats, accent=BEAT_ACCENT):
+    """Boost the velocity of drum hits that land on a beat."""
+    if len(beats) == 0:
+        return drum_hits
+    beat_times = np.asarray(beats)
+    out = []
+    for onset, kind, velocity in drum_hits:
+        if float(np.min(np.abs(beat_times - onset))) < 0.02:
+            velocity = min(1.25, velocity * accent)
+        out.append((onset, kind, velocity))
+    return out
+
+
 def render_arp(events, sample_rate, transpose, total, step=ARP_STEP_SECONDS):
     """Harmony as a fast NES arpeggio: step through the active chord notes on one
     pulse voice, so the chord shimmers instead of stacking into a pad."""
@@ -1082,7 +1103,7 @@ def render_pad(events, sample_rate, transpose, total):
 
 def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
                 lead_notes=None, bass_notes=None, drum_hits=None,
-                arp=False, vibrato=False, chords=None):
+                arp=False, vibrato=False, chords=None, echo_delay=0):
     """Render the polyphony as a small chip band, so it sounds like several
     instruments: a bright pulse lead, a hollow-square pulse harmony, a triangle
     bass and a noise drum channel (kick/snare/hat), mixed and levelled once by
@@ -1159,13 +1180,19 @@ def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
             time = np.arange(count) / sample_rate
             tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
                                       sample_rate, duty)
-        tone *= chip_envelope(count, sample_rate) * LEAD_GAIN
+        accent = BEAT_ACCENT if len(note) > 3 and note[3] else 1.0
+        tone *= chip_envelope(count, sample_rate) * LEAD_GAIN * accent
         offset = int(start * sample_rate)
         stop = min(offset + count, total)
         if offset < total:
             buffer[offset:stop] += tone[:stop - offset]
         previous_end = start + duration
         previous_midi = midi
+
+    # Echo on the melodic bus only; the rhythm section stays dry for punch.
+    if echo_delay > 0:
+        buffer = add_echo(buffer, echo_delay, feedback=BAND_ECHO_FEEDBACK)
+    rhythm = np.zeros(total, dtype=np.float64)
 
     # Bass: the real bass stem (bass_notes) when given, else the lowest line.
     low_line = bass_notes if bass_notes is not None else bass_line(events)
@@ -1182,7 +1209,7 @@ def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
         offset = int(start * sample_rate)
         stop = min(offset + count, total)
         if offset < total:
-            buffer[offset:stop] += tone[:stop - offset]
+            rhythm[offset:stop] += tone[:stop - offset]
 
     # Drums: kick / snare / hat on the noise channel, scaled by velocity.
     if drum_hits:
@@ -1194,9 +1221,9 @@ def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
                 continue
             burst = noise_burst(sample_rate, rng, kind)
             stop = min(offset + burst.size, total)
-            buffer[offset:stop] += burst[:stop - offset] * gains[kind] * velocity
+            rhythm[offset:stop] += burst[:stop - offset] * gains[kind] * velocity
 
-    return soft_limiter(buffer, sample_rate).astype(np.float32)
+    return soft_limiter(buffer + rhythm, sample_rate).astype(np.float32)
 
 
 def track_pitch(signal, sample_rate, hop=HOP, fmin=PITCH_FMIN, fmax=PITCH_FMAX):
@@ -1735,6 +1762,31 @@ def validate_audio(samples_u8, sample_rate, note_count):
     return all(ok for ok, text in checks), lines
 
 
+def normalize_loudness(signal, target=TARGET_RMS):
+    """Gain-only loudness normalisation to a fixed RMS, peak-capped at 0.95."""
+    rms = float(np.sqrt(np.mean(signal.astype(np.float64) ** 2)))
+    if rms <= 0:
+        return signal
+    gain = target / rms
+    peak = float(np.max(np.abs(signal)))
+    if peak > 0:
+        gain = min(gain, 0.95 / peak)
+    return (signal * gain).astype(np.float32)
+
+
+def dither(samples, bits, seed=NOISE_SEED):
+    """Seeded TPDF dither (one LSB) so bit quantisation adds hiss, not hash.
+
+    Plain quantisation correlates the error with the signal, which reads as a
+    gritty distortion at low bit depths; triangular-pdf noise decorrelates it.
+    """
+    levels = (1 << bits) - 1
+    lsb = 2.0 / levels
+    rng = np.random.default_rng(seed + bits)
+    noise = (rng.random(samples.size) - rng.random(samples.size)) * lsb
+    return samples + noise.astype(samples.dtype)
+
+
 def quantize(samples, bits):
     """Quantise [-1, 1] float samples to `bits` levels, return float in [-1, 1]."""
     levels = (1 << bits) - 1
@@ -1930,9 +1982,11 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         # falls back to the transcription-replay path.
         chords = []
         bass_notes = []
+        echo_delay = int(ECHO_FALLBACK_SECONDS * rate)
         try:
             mix = decode_mix(origin, DEFAULT_RATE)
             tempo, beat_times = track_beats(mix, DEFAULT_RATE)
+            echo_delay = int(0.5 * 60.0 / tempo * rate)
             span = max(end for start, end, pitch, amplitude in events)
             grid, beats = build_grid(beat_times, tempo, span, subdivisions=4)
             if key_tonic is not None:
@@ -1944,6 +1998,7 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
                     lead_notes = quantize_notes(lead_notes, tempo, beat_times)
                 drum_hits = drum_pattern(drum_hits, beats)
                 drum_hits = snap_drums(drum_hits, grid)
+                drum_hits = accent_drums(drum_hits, beats)
         except Exception:
             chords = []
         if not bass_notes:
@@ -1954,8 +2009,9 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         voice = render_band(events, rate, duty, transpose,
                             lead_notes=lead_notes, bass_notes=bass_notes,
                             drum_hits=drum_hits, arp=nes, vibrato=nes,
-                            chords=chords)
-        samples_u8 = to_uint8(quantize(voice, bits))
+                            chords=chords, echo_delay=echo_delay)
+        voice = normalize_loudness(voice)
+        samples_u8 = to_uint8(quantize(dither(voice, bits), bits))
         write_output(destination, samples_u8, rate, 1)
         quality_ok, report = validate_audio(samples_u8, rate, len(events))
         info.append(f"voices: {voices}")
