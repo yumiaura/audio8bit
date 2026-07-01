@@ -155,6 +155,15 @@ BASS_STEM_FMAX = 330.0
 NOISE_SEED = 0
 KICK_GAIN = 0.7
 SNARE_GAIN = 0.4
+HAT_GAIN = 0.28
+# The harmony plays as a fast arpeggio (NES-style) rather than a stacked pad:
+# it steps through the chord's notes every ARP_STEP_SECONDS on one pulse voice.
+# Notes and drums are snapped to the song's beat grid; the lead gets vibrato on
+# sustained notes.
+ARP_STEP_SECONDS = 1.0 / 48.0
+ARP_GAIN = 0.42
+LEAD_VIBRATO_MIN_SECONDS = 0.3
+DRUM_SNAP_SECONDS = 0.12
 
 
 class ConversionError(Exception):
@@ -582,10 +591,11 @@ def bass_from_stem(bass_signal, sample_rate):
 
 
 def detect_drums(drums_signal, sample_rate):
-    """Onset times of the Demucs drums stem, each tagged kick (low) or not.
+    """Onsets of the Demucs drums stem, each tagged with a kind and velocity.
 
-    Returns [(time_seconds, is_kick)]. A hit is a kick when its onset window has
-    more energy below 200 Hz than above (kick drum vs snare/hi-hat).
+    Returns [(time_seconds, kind, velocity)] where kind is 'kick', 'snare' or
+    'hat', classified by which band dominates the onset (low = kick, very bright
+    = hat, else snare), and velocity is the onset's peak relative to the loudest.
     """
     if drums_signal is None or drums_signal.size == 0:
         return []
@@ -599,30 +609,45 @@ def detect_drums(drums_signal, sample_rate):
         start = int(onset * sample_rate)
         chunk = drums_signal[start:start + window]
         if chunk.size < 16:
-            hits.append((float(onset), True))
+            hits.append((float(onset), "snare", 1.0))
             continue
         spectrum = np.abs(np.fft.rfft(chunk))
         frequencies = np.fft.rfftfreq(chunk.size, 1.0 / sample_rate)
         low = spectrum[frequencies < 200].sum()
-        high = spectrum[frequencies >= 200].sum()
-        hits.append((float(onset), bool(low >= high)))
-    return hits
+        mid = spectrum[(frequencies >= 200) & (frequencies < 2000)].sum()
+        high = spectrum[frequencies >= 2000].sum()
+        if low >= mid and low >= high:
+            kind = "kick"       # low-dominant
+        elif mid >= 0.4 * high:
+            kind = "snare"      # broadband body + noise
+        else:
+            kind = "hat"        # bright, little body
+        peak = float(np.max(np.abs(chunk)))
+        hits.append((float(onset), kind, peak))
+    loudest = max((peak for start, kind, peak in hits), default=1.0) or 1.0
+    return [(onset, kind, min(1.0, max(0.3, peak / loudest)))
+            for onset, kind, peak in hits]
 
 
-def noise_burst(sample_rate, rng, is_kick):
+def noise_burst(sample_rate, rng, kind):
     """A single drum hit for the noise channel, peak-normalised to ~1.
 
-    Kick: a short low sine thump plus a little noise. Snare/hi-hat: a brighter,
-    shorter noise burst. ``rng`` keeps it deterministic.
+    kick: a short low sine thump plus a little noise. snare: a mid noise burst.
+    hat: a very short bright tick. ``rng`` keeps it deterministic.
     """
-    if is_kick:
+    if kind == "kick":
         count = int(0.12 * sample_rate)
         time = np.arange(count) / sample_rate
         envelope = np.exp(-time / 0.045)
         tone = np.sin(2.0 * np.pi * 60.0 * time) * envelope
         noise = (rng.random(count) * 2.0 - 1.0) * envelope * 0.4
         out = tone * 0.9 + noise
-    else:
+    elif kind == "hat":
+        count = int(0.03 * sample_rate)
+        time = np.arange(count) / sample_rate
+        envelope = np.exp(-time / 0.008)
+        out = (rng.random(count) * 2.0 - 1.0) * envelope
+    else:  # snare
         count = int(0.08 * sample_rate)
         time = np.arange(count) / sample_rate
         envelope = np.exp(-time / 0.02)
@@ -634,56 +659,107 @@ def noise_burst(sample_rate, rng, is_kick):
     return out / peak if peak > 0 else out
 
 
-def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
-                bass_notes=None, drum_hits=None):
-    """Render the polyphony as a small chip band, so it sounds like several
-    instruments: a bright pulse lead, a hollow-square pulse harmony pad, a
-    triangle bass and a noise drum channel, mixed and levelled once by the
-    smooth limiter.
+def snap_drums(drum_hits, grid, snap_seconds=DRUM_SNAP_SECONDS):
+    """Snap each drum onset to the nearest beat-grid time within the window."""
+    if grid is None or grid.size == 0:
+        return drum_hits
+    snapped = []
+    for onset, kind, velocity in drum_hits:
+        nearest = float(grid[np.argmin(np.abs(grid - onset))])
+        snapped.append((nearest if abs(nearest - onset) <= snap_seconds else onset,
+                        kind, velocity))
+    return snapped
 
-    ``bass_notes`` (from the Demucs bass stem) plays the triangle when given,
-    else the lowest transcribed line is used; ``drum_hits`` (onsets of the drums
-    stem) fire the noise channel. Every transcribed note is kept (polyphony);
-    pitches stay as transcribed, with a uniform ``transpose`` applied.
+
+def render_arp(events, sample_rate, transpose, total, step=ARP_STEP_SECONDS):
+    """Harmony as a fast NES arpeggio: step through the active chord notes on one
+    pulse voice, so the chord shimmers instead of stacking into a pad."""
+    buffer = np.zeros(total, dtype=np.float64)
+    if not events:
+        return buffer
+    count = int(step * sample_rate)
+    if count <= 0:
+        return buffer
+    starts = np.array([event[0] for event in events])
+    ends = np.array([event[1] for event in events])
+    pitches = np.array([event[2] for event in events])
+    envelope = chip_envelope(count, sample_rate, attack=0.001, decay=0.02,
+                             sustain=0.7, release=0.001)
+    time = np.arange(count) / sample_rate
+
+    # One step-long tone per pitch (there are only a few dozen), reused across
+    # frames so the arpeggio does not recompute the pulse thousands of times.
+    cache = {}
+
+    def tone_for(pitch):
+        if pitch not in cache:
+            frequency = float(midi_to_hz(pitch + transpose))
+            cache[pitch] = band_limited_pulse(
+                2.0 * np.pi * frequency * time, frequency, sample_rate,
+                HARMONY_DUTY,
+            ) * envelope * ARP_GAIN
+        return cache[pitch]
+
+    frames = int(float(ends.max()) / step) + 1
+    for frame in range(frames):
+        moment = frame * step
+        active = np.unique(pitches[(starts <= moment) & (moment < ends)])
+        if active.size == 0:
+            continue
+        tone = tone_for(float(active[frame % active.size]))
+        offset = int(moment * sample_rate)
+        stop = min(offset + count, total)
+        if offset < total:
+            buffer[offset:stop] += tone[:stop - offset]
+    return buffer
+
+
+def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
+                lead_notes=None, bass_notes=None, drum_hits=None):
+    """Render the polyphony as a small chip band, so it sounds like several
+    instruments: a bright pulse lead (vibrato on sustained notes), a hollow-square
+    pulse harmony played as a fast NES arpeggio, a triangle bass and a noise drum
+    channel (kick/snare/hat), mixed and levelled once by the smooth limiter.
+
+    ``lead_notes``/``bass_notes`` (quantised to the beat when given) drive the
+    lead and triangle; otherwise they fall back to ``melody_line``/``bass_line``.
+    ``drum_hits`` is [(time, kind, velocity)]. A uniform ``transpose`` is applied.
     """
     if not events:
         return np.zeros(sample_rate, dtype=np.float32)
     span = max(end for start, end, pitch, amplitude in events)
     total = int(span * sample_rate) + sample_rate
-    buffer = np.zeros(total, dtype=np.float64)
 
-    # Harmony pad: every note, hollow-square pulse, scaled by transcribed loudness.
-    for start, end, pitch, amplitude in events:
-        count = int((end - start) * sample_rate)
-        if count <= 0:
-            continue
-        frequency = float(midi_to_hz(pitch + transpose))
-        time = np.arange(count) / sample_rate
-        tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
-                                  sample_rate, HARMONY_DUTY)
-        loudness = CHORD_AMP_FLOOR + (1.0 - CHORD_AMP_FLOOR) * min(1.0, amplitude)
-        tone *= chip_envelope(count, sample_rate) * HARMONY_GAIN * loudness
-        offset = int(start * sample_rate)
-        stop = min(offset + count, total)
-        buffer[offset:stop] += tone[:stop - offset]
+    # Harmony: a fast NES arpeggio through the active chord notes.
+    buffer = render_arp(events, sample_rate, transpose, total)
 
-    # Lead: the smooth top line, bright pulse, louder — carries the tune.
-    for start, duration, midi in melody_line(events):
+    # Lead: the smooth top line, bright pulse, vibrato on sustained notes.
+    lead = lead_notes if lead_notes is not None else melody_line(events)
+    vibrato_peak = 2.0 ** (VIBRATO_CENTS / 1200.0)
+    for note in lead:
+        start, duration, midi = note[0], note[1], note[2]
         count = int(duration * sample_rate)
         if count <= 0:
             continue
         frequency = float(midi_to_hz(midi + transpose))
-        time = np.arange(count) / sample_rate
-        tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
-                                  sample_rate, duty)
+        if duration >= LEAD_VIBRATO_MIN_SECONDS:
+            phase = harmonic_phase(frequency, count, sample_rate)
+            tone = band_limited_pulse(phase, frequency * vibrato_peak,
+                                      sample_rate, duty)
+        else:
+            time = np.arange(count) / sample_rate
+            tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
+                                      sample_rate, duty)
         tone *= chip_envelope(count, sample_rate) * LEAD_GAIN
         offset = int(start * sample_rate)
         stop = min(offset + count, total)
-        buffer[offset:stop] += tone[:stop - offset]
+        if offset < total:
+            buffer[offset:stop] += tone[:stop - offset]
 
     # Bass: the real bass stem (bass_notes) when given, else the lowest line.
     low_line = bass_notes if bass_notes is not None else bass_line(events)
-    for start, duration, midi in low_line:
+    for note in low_line:
+        start, duration, midi = note[0], note[1], note[2]
         count = int(duration * sample_rate)
         if count <= 0:
             continue
@@ -694,19 +770,20 @@ def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
         tone *= chip_envelope(count, sample_rate, decay=0.2, sustain=0.4) * BASS_GAIN
         offset = int(start * sample_rate)
         stop = min(offset + count, total)
-        buffer[offset:stop] += tone[:stop - offset]
+        if offset < total:
+            buffer[offset:stop] += tone[:stop - offset]
 
-    # Drums: fire the noise channel at each detected onset.
+    # Drums: kick / snare / hat on the noise channel, scaled by velocity.
     if drum_hits:
         rng = np.random.default_rng(NOISE_SEED)
-        for onset, is_kick in drum_hits:
+        gains = {"kick": KICK_GAIN, "snare": SNARE_GAIN, "hat": HAT_GAIN}
+        for onset, kind, velocity in drum_hits:
             offset = int(onset * sample_rate)
             if offset >= total:
                 continue
-            burst = noise_burst(sample_rate, rng, is_kick)
-            gain = KICK_GAIN if is_kick else SNARE_GAIN
+            burst = noise_burst(sample_rate, rng, kind)
             stop = min(offset + burst.size, total)
-            buffer[offset:stop] += burst[:stop - offset] * gain
+            buffer[offset:stop] += burst[:stop - offset] * gains[kind] * velocity
 
     return soft_limiter(buffer, sample_rate).astype(np.float32)
 
@@ -1422,16 +1499,32 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
 
     if method == METHOD_TRANSCRIBE and voices == VOICES_BAND:
         events = transcribe_events(signal, sample_rate, picked)
+        lead_notes = melody_line(events)
         bass_notes = bass_from_stem(stems.get("bass"), sample_rate)
         drum_hits = detect_drums(stems.get("drums"), sample_rate)
+        # Tighten to the song's beat grid (best effort; fall back if it fails).
+        try:
+            mix = decode_mix(origin, DEFAULT_RATE)
+            tempo, beat_times = track_beats(mix, DEFAULT_RATE)
+            if lead_notes:
+                lead_notes = quantize_notes(lead_notes, tempo, beat_times)
+            if bass_notes:
+                bass_notes = quantize_notes(bass_notes, tempo, beat_times)
+            span = max(end for start, end, pitch, amplitude in events)
+            grid, beats = build_grid(beat_times, tempo, span, subdivisions=4)
+            drum_hits = snap_drums(drum_hits, grid)
+        except Exception:
+            pass
         voice = render_band(events, rate, duty, transpose,
-                            bass_notes=bass_notes, drum_hits=drum_hits)
+                            lead_notes=lead_notes, bass_notes=bass_notes,
+                            drum_hits=drum_hits)
         samples_u8 = to_uint8(quantize(voice, bits))
         write_output(destination, samples_u8, rate, 1)
         quality_ok, report = validate_audio(samples_u8, rate, len(events))
         info.append("voices: band")
         info.append(
-            f"bass stem: {len(bass_notes)} notes, drums: {len(drum_hits)} hits"
+            f"bass: {len(bass_notes)} notes, drums: {len(drum_hits)} hits, "
+            "arp harmony, beat-quantised"
         )
         return destination, quality_ok, info + report
 
