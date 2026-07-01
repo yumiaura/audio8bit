@@ -39,6 +39,12 @@ audio8bit -i song.mp3
 # Apenas a melodia principal, sem acordes
 audio8bit -i song.mp3 -V lead
 
+# Banda multi-instrumento: lead de pulso + harmonia de pulso + baixo de triangulo + bateria de ruido
+audio8bit -i song.mp3 -V band
+
+# Estilo NES: a banda com harmonia arpejada, no ritmo
+audio8bit -i song.mp3 -V nes
+
 # Pega a melodia do canto ou dos instrumentos
 audio8bit -i song.mp3 -s vocals
 audio8bit -i song.mp3 -s instrumental
@@ -61,11 +67,15 @@ audio8bit --version
 - `-f, --format` - formato de saida, por exemplo `ogg`, `wav` (padrao: o mesmo da entrada)
 - `-s, --source` - fonte da melodia: `vocals`, `instrumental`, `auto` (padrao: `auto`)
 - `-m, --method` - deteccao de notas: `transcribe` ou `pitch` (padrao: `transcribe`)
-- `-V, --voices` - `chords` (com harmonia) ou `lead` (linha unica) (padrao: `chords`)
+- `-V, --voices` - `chords` (com harmonia) ou `lead` (linha unica) ou `band` (multi-instrumento: lead de pulso + harmonia de pulso + baixo de triangulo + bateria de ruido) ou `nes` (arpejado, no ritmo) (padrao: `chords`)
 - `--transpose` - mudanca de tom em semitons (padrao: `0`)
 - `--bits` - profundidade de bits, 1-8, quanto menor mais granulado (padrao: `8`)
 - `--rate` - taxa de amostragem em Hz, quanto menor mais retro (padrao: `22050`)
 - `--duty` - ciclo de trabalho da onda de pulso, 0-1 (padrao: `0.25`)
+- `--key-snap` - band/nes: ajusta notas fora do tom a tonalidade detectada: `on`, `off` (padrao: `on`)
+- `--arrange` - band/nes: acompanhamento pela progressao de acordes, baixo nas fundamentais e bateria em loop em vez de reproduzir a transcricao: `on`, `off` (padrao: `on`)
+- `--echo` - band/nes: eco sincronizado ao tempo na melodia: `on`, `off` (padrao: `on`)
+- `--dither` - band/nes: dither TPDF antes da quantizacao de bits: `on`, `off` (padrao: `on`)
 - `--no-cache` - não ler nem gravar stems do Demucs em cache
 - `--cache-dir` - diretório para os stems em cache (padrão: `~/.cache/audio8bit`, ou `$AUDIO8BIT_CACHE_DIR`)
 - `--version` - mostra a versao
@@ -75,7 +85,7 @@ Codigos de saida: `0` sucesso, `1` erro de conversao, `2` argumentos invalidos.
 ### Recursos
 
 - Funciona com musicas **vocais** e **instrumentais** - escolhe a fonte da melodia automaticamente.
-- **Transcricao polifonica** (basic-pitch) mantem os acordes e o baixo, ou os reduz a uma unica linha principal.
+- **Transcricao polifonica** (basic-pitch) mantem os acordes e o baixo, ou os reduz a uma unica linha principal. O modo `band` os distribui por canais de chip (lead de pulso, harmonia de pulso, baixo de triangulo). O baixo vem do stem de baixo e a bateria do stem de bateria. O modo `nes` arpeja a harmonia e a ajusta ao ritmo.
 - Separacao de fontes com **Demucs**, deterministica, de modo que a mesma entrada sempre produz o mesmo resultado.
 - Sintese chiptune sem aliasing com dinamica de volume e um limitador suave.
 - Transposicao de tom e profundidade de bits, taxa de amostragem e tom de pulso ajustaveis.

@@ -56,8 +56,12 @@ def build_parser():
     )
     parser.add_argument(
         "-V", "--voices", choices=VOICES_CHOICES, default=DEFAULT_VOICES,
-        help="with --method transcribe: 'chords' plays every note (harmony and "
-             "bass kept) or 'lead' plays a single melody line "
+        help="with --method transcribe: 'chords' plays every note in one pulse "
+             "voice (harmony and bass kept), 'lead' plays a single melody line, "
+             "'band' arranges it as a full chip band (pulse lead, a stacked pulse "
+             "harmony, a triangle bass from the bass stem and noise drums from "
+             "the drums stem), or 'nes' plays the same band but with the harmony "
+             "as a fast arpeggio and the notes and drums snapped to the beat "
              f"(default: {DEFAULT_VOICES})",
     )
     parser.add_argument(
@@ -76,6 +80,24 @@ def build_parser():
     parser.add_argument(
         "--duty", type=float, default=DEFAULT_DUTY,
         help=f"pulse-wave duty cycle, 0-1 (default: {DEFAULT_DUTY})",
+    )
+    parser.add_argument(
+        "--key-snap", choices=("on", "off"), default="on",
+        help="band/nes: snap off-key notes to the detected key (default: on)",
+    )
+    parser.add_argument(
+        "--arrange", choices=("on", "off"), default="on",
+        help="band/nes: play the detected chord progression, root bass and "
+             "looped drum pattern instead of replaying the transcription "
+             "(default: on)",
+    )
+    parser.add_argument(
+        "--echo", choices=("on", "off"), default="on",
+        help="band/nes: tempo-synced echo on the melody (default: on)",
+    )
+    parser.add_argument(
+        "--dither", choices=("on", "off"), default="on",
+        help="band/nes: TPDF dither before bit quantisation (default: on)",
     )
     parser.add_argument(
         "--no-cache", action="store_true",
@@ -109,6 +131,10 @@ def main(argv=None):
             voices=args.voices,
             use_cache=not args.no_cache,
             cache_dir=args.cache_dir,
+            key_snap=args.key_snap == "on",
+            arrange=args.arrange == "on",
+            echo=args.echo == "on",
+            dither=args.dither == "on",
         )
     except ConversionError as error:
         print(f"audio8bit: {error}", file=sys.stderr)

@@ -4,6 +4,35 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- New `--voices band` and `--voices nes` modes: arrange the song as a full chip
+  band instead of one pulse voice playing a chord. Both use a pulse lead, a
+  triangle bass and a seeded noise drum channel (kick / snare / hi-hat, with
+  velocity) from the drums stem. `band` plays loose with a sustained harmony;
+  `nes` arpeggiates the harmony NES-style, adds vibrato to sustained lead
+  notes, and snaps the notes and drums to the song's beat grid. Output stays
+  deterministic.
+- Musicality package for `band`/`nes`:
+  - Key detection (Krumhansl-Schmuckler) with off-key notes snapped to the
+    scale, plus transcription cleanup (litter dropped, legato bridged); the
+    report shows e.g. `key: E major (64 notes snapped)`.
+  - An arranger instead of transcription replay: the accompaniment is the
+    detected diatonic chord progression played as clean voiced triads
+    (sustained for `band`, arpeggiated for `nes`), the bass plays chord roots
+    (held / root-fifth quarters), and `nes` loops the dominant per-bar drum
+    pattern. The stem-tracked bass remains the fallback.
+  - Mix: the harmony bed is level-trimmed and ducks under the lead
+    (sidechain-style) so the melody always reads on top; the lead slides
+    (portamento) between adjacent legato notes.
+  - Production: a tempo-synced echo on the melodic bus (rhythm stays dry),
+    beat accents on the `nes` lead/drums, loudness normalisation to a fixed
+    RMS, and seeded TPDF dither before the bit quantiser.
+  - All four are switchable: `--key-snap`, `--arrange`, `--echo` and
+    `--dither` take `on`/`off` (default `on`).
+
 ## 0.0.2 - 2026-06-30
 
 ### Added

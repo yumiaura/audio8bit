@@ -39,6 +39,12 @@ audio8bit -i song.mp3
 # 메인 멜로디만, 코드 없이
 audio8bit -i song.mp3 -V lead
 
+# 멀티 악기 밴드: 펄스 리드 + 펄스 하모니 + 삼각파 베이스 + 노이즈 드럼
+audio8bit -i song.mp3 -V band
+
+# NES 스타일: 아르페지오 하모니 밴드, 박자에 맞춤
+audio8bit -i song.mp3 -V nes
+
 # 노래에서 또는 악기에서 멜로디 가져오기
 audio8bit -i song.mp3 -s vocals
 audio8bit -i song.mp3 -s instrumental
@@ -61,11 +67,15 @@ audio8bit --version
 - `-f, --format` - 출력 형식, 예: `ogg`, `wav` (기본값: 입력과 동일)
 - `-s, --source` - 멜로디 소스: `vocals`, `instrumental`, `auto` (기본값: `auto`)
 - `-m, --method` - 음 찾기: `transcribe` 또는 `pitch` (기본값: `transcribe`)
-- `-V, --voices` - `chords` (화음 포함) 또는 `lead` (단일 라인) (기본값: `chords`)
+- `-V, --voices` - `chords` (화음 포함) 또는 `lead` (단일 라인) 또는 `band` (멀티 악기: 펄스 리드 + 펄스 하모니 + 삼각파 베이스 + 노이즈 드럼) 또는 `nes` (아르페지오, 박자에 맞춤) (기본값: `chords`)
 - `--transpose` - 반음 단위의 키 이동 (기본값: `0`)
 - `--bits` - 비트 깊이, 1-8, 낮을수록 더 거칠어집니다 (기본값: `8`)
 - `--rate` - Hz 단위의 샘플 레이트, 낮을수록 더 레트로합니다 (기본값: `22050`)
 - `--duty` - 펄스파 듀티 사이클, 0-1 (기본값: `0.25`)
+- `--key-snap` - band/nes: 조성에서 벗어난 음을 감지된 조성에 맞춥니다: `on`, `off` (기본값: `on`)
+- `--arrange` - band/nes: 전사 재생 대신 코드 진행 반주, 루트 베이스, 루프 드럼을 사용합니다: `on`, `off` (기본값: `on`)
+- `--echo` - band/nes: 멜로디에 템포 동기 에코: `on`, `off` (기본값: `on`)
+- `--dither` - band/nes: 비트 양자화 전 TPDF 디더: `on`, `off` (기본값: `on`)
 - `--no-cache` - 캐시된 Demucs 스템을 읽거나 쓰지 않음
 - `--cache-dir` - 캐시된 스템을 저장할 디렉터리 (기본값: `~/.cache/audio8bit`, 또는 `$AUDIO8BIT_CACHE_DIR`)
 - `--version` - 버전 표시
@@ -75,7 +85,7 @@ audio8bit --version
 ### 기능
 
 - **보컬** 곡과 **연주곡** 모두 지원 - 멜로디 소스를 자동으로 선택합니다.
-- **다성 전사**(basic-pitch)로 코드와 베이스를 유지하거나, 단일 리드 라인으로 줄여줍니다.
+- **다성 전사**(basic-pitch)로 코드와 베이스를 유지하거나, 단일 리드 라인으로 줄여줍니다. `band` 모드는 이를 칩 채널로 나눕니다 (펄스 리드, 펄스 하모니, 삼각파 베이스). 베이스는 베이스 스템에서, 드럼은 드럼 스템에서 가져옵니다. `nes` 모드는 하모니를 아르페지오로 만들고 박자에 맞춥니다.
 - **Demucs**를 이용한 음원 분리, 결정론적이므로 동일한 입력은 항상 동일한 결과를 냅니다.
 - 라우드니스 다이내믹스와 부드러운 리미터를 갖춘 에일리어스 없는 칩튠 합성.
 - 키 전조와 조정 가능한 비트 깊이, 샘플 레이트, 펄스 톤.

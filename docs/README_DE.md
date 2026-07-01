@@ -39,6 +39,12 @@ audio8bit -i song.mp3
 # Just the main melody, no chords
 audio8bit -i song.mp3 -V lead
 
+# Mehrinstrumentale Band: Puls-Lead + Puls-Harmonie + Dreieck-Bass + Rausch-Drums
+audio8bit -i song.mp3 -V band
+
+# NES-Stil: die Band mit arpeggierter Harmonie, auf den Takt
+audio8bit -i song.mp3 -V nes
+
 # Take the tune from the singing or from the instruments
 audio8bit -i song.mp3 -s vocals
 audio8bit -i song.mp3 -s instrumental
@@ -61,11 +67,15 @@ audio8bit --version
 - `-f, --format` - Ausgabeformat, z. B. `ogg`, `wav` (Standard: wie die Eingabe)
 - `-s, --source` - Melodiequelle: `vocals`, `instrumental`, `auto` (Standard: `auto`)
 - `-m, --method` - Notenfindung: `transcribe` oder `pitch` (Standard: `transcribe`)
-- `-V, --voices` - `chords` (mit Harmonie) oder `lead` (einzelne Linie) (Standard: `chords`)
+- `-V, --voices` - `chords` (mit Harmonie) oder `lead` (einzelne Linie) oder `band` (Mehrinstrumental: Puls-Lead + Puls-Harmonie + Dreieck-Bass + Rausch-Drums) oder `nes` (arpeggiert, auf den Takt) (Standard: `chords`)
 - `--transpose` - Tonartverschiebung in Halbtoenen (Standard: `0`)
 - `--bits` - Bittiefe, 1-8, niedriger ist knuspriger (Standard: `8`)
 - `--rate` - Abtastrate in Hz, niedriger ist nostalgischer (Standard: `22050`)
 - `--duty` - Tastverhaeltnis der Pulswelle, 0-1 (Standard: `0.25`)
+- `--key-snap` - band/nes: zieht tonartfremde Noten auf die erkannte Tonart: `on`, `off` (Standard: `on`)
+- `--arrange` - band/nes: Begleitung aus der Akkordfolge, Bass auf Grundtoenen und geloopte Drums statt der abgespielten Transkription: `on`, `off` (Standard: `on`)
+- `--echo` - band/nes: tempo-synchrones Echo auf der Melodie: `on`, `off` (Standard: `on`)
+- `--dither` - band/nes: TPDF-Dither vor der Bit-Quantisierung: `on`, `off` (Standard: `on`)
 - `--no-cache` - zwischengespeicherte Demucs-Stems weder lesen noch schreiben
 - `--cache-dir` - Verzeichnis für zwischengespeicherte Stems (Standard: `~/.cache/audio8bit`, oder `$AUDIO8BIT_CACHE_DIR`)
 - `--version` - Version anzeigen
@@ -75,7 +85,7 @@ Exit-Codes: `0` Erfolg, `1` Konvertierungsfehler, `2` ungueltige Argumente.
 ### Funktionen
 
 - Funktioniert mit **Gesangs**-Liedern und **Instrumentalstuecken** - waehlt die Melodiequelle automatisch aus.
-- **Polyphone Transkription** (basic-pitch) behaelt die Akkorde und den Bass oder reduziert sie auf eine einzelne Lead-Linie.
+- **Polyphone Transkription** (basic-pitch) behaelt die Akkorde und den Bass oder reduziert sie auf eine einzelne Lead-Linie. Der Modus `band` verteilt sie auf Chip-Kanaele (Puls-Lead, Puls-Harmonie, Dreieck-Bass). Der Bass stammt aus dem Bass-Stem und das Schlagzeug aus dem Drums-Stem. Der Modus `nes` arpeggiert die Harmonie und richtet sie am Takt aus.
 - Quellentrennung mit **Demucs**, deterministisch, sodass dieselbe Eingabe immer dasselbe Ergebnis liefert.
 - Alias-freie Chiptune-Synthese mit Lautstaerkedynamik und einem weichen Limiter.
 - Tonartverschiebung sowie einstellbare Bittiefe, Abtastrate und Pulston.

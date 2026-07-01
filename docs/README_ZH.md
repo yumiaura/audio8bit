@@ -39,6 +39,12 @@ audio8bit -i song.mp3
 # Just the main melody, no chords
 audio8bit -i song.mp3 -V lead
 
+# 多乐器乐队：脉冲主音 + 脉冲和声 + 三角波贝斯 + 噪声鼓
+audio8bit -i song.mp3 -V band
+
+# NES 风格：琶音和声的乐队，对齐节拍
+audio8bit -i song.mp3 -V nes
+
 # Take the tune from the singing or from the instruments
 audio8bit -i song.mp3 -s vocals
 audio8bit -i song.mp3 -s instrumental
@@ -61,11 +67,15 @@ audio8bit --version
 - `-f, --format` - 输出格式，例如 `ogg`、`wav`（默认：与输入相同）
 - `-s, --source` - 旋律来源：`vocals`、`instrumental`、`auto`（默认：`auto`）
 - `-m, --method` - 音符识别：`transcribe` 或 `pitch`（默认：`transcribe`）
-- `-V, --voices` - `chords`（带和声）或 `lead`（单声部）（默认：`chords`）
+- `-V, --voices` - `chords`（带和声）或 `lead`（单声部） 或 `band`（多乐器：脉冲主音 + 脉冲和声 + 三角波贝斯 + 噪声鼓） 或 `nes`（琶音、对齐节拍）（默认：`chords`）
 - `--transpose` - 以半音为单位的调式移动（默认：`0`）
 - `--bits` - 位深度，1-8，越低越粗糙（默认：`8`）
 - `--rate` - 采样率（Hz），越低越复古（默认：`22050`）
 - `--duty` - 脉冲波占空比，0-1（默认：`0.25`）
+- `--key-snap` - band/nes：把跑调音符对齐到检测出的调性：`on`、`off`（默认：`on`）
+- `--arrange` - band/nes：以和弦进行伴奏、根音贝斯和循环鼓点取代转录回放：`on`、`off`（默认：`on`）
+- `--echo` - band/nes：旋律上的节拍同步回声：`on`、`off`（默认：`on`）
+- `--dither` - band/nes：位量化前的 TPDF 抖动：`on`、`off`（默认：`on`）
 - `--no-cache` - 不读取也不写入缓存的 Demucs 分轨
 - `--cache-dir` - 缓存分轨的目录（默认：`~/.cache/audio8bit`，或 `$AUDIO8BIT_CACHE_DIR`）
 - `--version` - 显示版本
@@ -75,7 +85,7 @@ audio8bit --version
 ### 功能特性
 
 - 同时支持**人声**歌曲和**纯乐器**作品 - 自动选择旋律来源。
-- **复音转录**（basic-pitch）保留和弦与贝斯，或将其简化为单一主旋律线。
+- **复音转录**（basic-pitch）保留和弦与贝斯，或将其简化为单一主旋律线。 `band` 模式将它们分配到不同的芯片声道（脉冲主音、脉冲和声、三角波贝斯）。 贝斯来自贝斯声轨，鼓来自鼓声轨。 `nes` 模式将和声琶音化并对齐节拍。
 - 使用 **Demucs** 进行声源分离，结果是确定性的，因此相同的输入始终给出相同的结果。
 - 无混叠的芯片音乐合成，带有响度动态和平滑的限幅器。
 - 调式移调，以及可调的位深度、采样率和脉冲音色。
