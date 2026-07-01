@@ -182,6 +182,22 @@ MAJOR_SCALE_DEGREES = (0, 2, 4, 5, 7, 9, 11)
 MINOR_SCALE_DEGREES = (0, 2, 3, 5, 7, 8, 10)
 NOTE_NAMES = ("C", "C#", "D", "D#", "E", "F",
               "F#", "G", "G#", "A", "A#", "B")
+# The arranger: instead of replaying the transcription, band/nes detect the
+# chord progression (one chord per CHORD_SEGMENT_BEATS beats, scored against
+# the key's diatonic triads), play the accompaniment as clean voiced triads,
+# put the bass on chord roots, loop the dominant per-bar drum pattern (nes),
+# and slide the lead between adjacent legato notes.
+CHORD_SEGMENT_BEATS = 2
+CHORD_ROOT_BONUS = 0.3
+CHORD_REGISTER_LOW = 57
+CHORD_REGISTER_HIGH = 71
+BASS_ROOT_LOW = 33
+BASS_ROOT_HIGH = 45
+DRUM_PATTERN_MIN_SHARE = 0.4
+DRUM_PATTERN_STEPS = 16
+SLIDE_SECONDS = 0.05
+SLIDE_MAX_SEMITONES = 4
+SLIDE_MAX_GAP_SECONDS = 0.06
 
 
 class ConversionError(Exception):
@@ -628,14 +644,15 @@ def detect_key(events):
     """Detect the song's key from the transcribed events.
 
     Correlates a duration-weighted pitch-class histogram with the 24
-    Krumhansl-Schmuckler profiles. Returns (name, scale_pcs) where ``name`` is
-    e.g. 'A minor' and ``scale_pcs`` is the frozenset of in-scale pitch classes.
+    Krumhansl-Schmuckler profiles. Returns (name, scale_pcs, tonic, degrees):
+    e.g. ('A minor', frozenset of in-scale pitch classes, 9,
+    MINOR_SCALE_DEGREES). All None when the events carry no energy.
     """
     histogram = np.zeros(12)
     for start, end, pitch, amplitude in events:
         histogram[int(round(pitch)) % 12] += max(end - start, 0.0)
     if histogram.sum() <= 0:
-        return None, None
+        return None, None, None, None
     best = None
     for mode, profile, degrees in (
         ("major", KEY_PROFILE_MAJOR, MAJOR_SCALE_DEGREES),
@@ -647,8 +664,9 @@ def detect_key(events):
             score = float(np.corrcoef(histogram, rotated)[0, 1])
             if best is None or score > best[0]:
                 scale = frozenset((tonic + degree) % 12 for degree in degrees)
-                best = (score, f"{NOTE_NAMES[tonic]} {mode}", scale)
-    return best[1], best[2]
+                best = (score, f"{NOTE_NAMES[tonic]} {mode}", scale,
+                        tonic, degrees)
+    return best[1], best[2], best[3], best[4]
 
 
 def snap_to_key(events, scale_pcs):
@@ -689,6 +707,207 @@ def snap_notes_to_key(notes, scale_pcs):
                 midi += 1
         out.append([note[0], note[1], float(midi)] + list(note[3:]))
     return out
+
+
+def diatonic_triads(tonic, degrees):
+    """The key's seven diatonic triads as (root_pc, (pc, pc, pc)) tuples."""
+    triads = []
+    for index in range(len(degrees)):
+        pcs = tuple(
+            (tonic + degrees[(index + step) % len(degrees)]) % 12
+            for step in (0, 2, 4)
+        )
+        triads.append((pcs[0], pcs))
+    return triads
+
+
+def detect_chords(events, beats, triads, segment_beats=CHORD_SEGMENT_BEATS):
+    """Reduce the transcription to a chord progression.
+
+    Splits time into ``segment_beats``-long segments and scores each diatonic
+    triad by how much duration-times-amplitude mass of the segment's events
+    lands on its tones (with a bonus for the root). Silent segments carry the
+    previous chord. Returns [(start, end, root_pc, triad_pcs)].
+    """
+    if len(beats) < 2 or not events:
+        return []
+    span = max(end for start, end, pitch, amplitude in events)
+    step = float(np.median(np.diff(beats)))
+    marks = list(beats)
+    while marks[0] - step > 0:
+        marks.insert(0, marks[0] - step)
+    if marks[0] > 0:
+        marks.insert(0, 0.0)
+    while marks[-1] < span:
+        marks.append(marks[-1] + step)
+    boundaries = marks[::segment_beats]
+    if boundaries[-1] < span:
+        boundaries.append(marks[-1])
+
+    chords = []
+    previous = None
+    for left, right in zip(boundaries[:-1], boundaries[1:]):
+        histogram = np.zeros(12)
+        for start, end, pitch, amplitude in events:
+            overlap = min(end, right) - max(start, left)
+            if overlap > 0:
+                histogram[int(round(pitch)) % 12] += overlap * max(amplitude, 0.1)
+        if histogram.sum() <= 0:
+            if previous is not None:
+                chords.append((left, right, previous[0], previous[1]))
+            continue
+        best = None
+        for root_pc, pcs in triads:
+            score = sum(histogram[pc] for pc in pcs)
+            score += CHORD_ROOT_BONUS * histogram[root_pc]
+            if best is None or score > best[0]:
+                best = (score, root_pc, pcs)
+        previous = (best[1], best[2])
+        chords.append((left, right, best[1], best[2]))
+    return chords
+
+
+def voice_pitch(pc, low=CHORD_REGISTER_LOW, high=CHORD_REGISTER_HIGH):
+    """Place a pitch class in the [low, high] register, nearest the centre."""
+    centre = (low + high) / 2.0
+    candidates = [midi for midi in range(low, high + 1) if midi % 12 == pc]
+    return min(candidates, key=lambda midi: abs(midi - centre))
+
+
+def render_chord_pad(chords, sample_rate, transpose, total):
+    """Accompaniment for 'band': each chord as three sustained pulse voices."""
+    buffer = np.zeros(total, dtype=np.float64)
+    for start, end, root_pc, pcs in chords:
+        count = int((end - start) * sample_rate)
+        if count <= 0:
+            continue
+        envelope = chip_envelope(count, sample_rate, attack=0.006, decay=0.25,
+                                 sustain=0.7, release=0.04)
+        time = np.arange(count) / sample_rate
+        offset = int(start * sample_rate)
+        stop = min(offset + count, total)
+        if offset >= total:
+            continue
+        for pc in pcs:
+            frequency = float(midi_to_hz(voice_pitch(pc) + transpose))
+            tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
+                                      sample_rate, HARMONY_DUTY)
+            tone *= envelope * HARMONY_GAIN * (1.0 / len(pcs)) * 2.0
+            buffer[offset:stop] += tone[:stop - offset]
+    return buffer
+
+
+def render_chord_arp(chords, sample_rate, transpose, total,
+                     step=ARP_STEP_SECONDS):
+    """Accompaniment for 'nes': arpeggiate each chord (root-third-fifth-octave)."""
+    buffer = np.zeros(total, dtype=np.float64)
+    count = int(step * sample_rate)
+    if count <= 0:
+        return buffer
+    envelope = chip_envelope(count, sample_rate, attack=0.001, decay=0.02,
+                             sustain=0.7, release=0.001)
+    time = np.arange(count) / sample_rate
+    cache = {}
+
+    def tone_for(midi):
+        if midi not in cache:
+            frequency = float(midi_to_hz(midi + transpose))
+            cache[midi] = band_limited_pulse(
+                2.0 * np.pi * frequency * time, frequency, sample_rate,
+                HARMONY_DUTY,
+            ) * envelope * ARP_GAIN
+        return cache[midi]
+
+    for start, end, root_pc, pcs in chords:
+        voiced = [voice_pitch(pc) for pc in pcs]
+        ladder = sorted(voiced) + [min(voiced) + 12]
+        frame = int(start / step)
+        while frame * step < end:
+            moment = frame * step
+            if moment >= start:
+                offset = int(moment * sample_rate)
+                if offset < total:
+                    tone = tone_for(ladder[frame % len(ladder)])
+                    stop = min(offset + count, total)
+                    buffer[offset:stop] += tone[:stop - offset]
+            frame += 1
+    return buffer
+
+
+def bass_root_pitch(pc):
+    """Place a chord root in the bass register."""
+    candidates = [midi for midi in range(BASS_ROOT_LOW, BASS_ROOT_HIGH + 1)
+                  if midi % 12 == pc]
+    centre = (BASS_ROOT_LOW + BASS_ROOT_HIGH) / 2.0
+    return min(candidates, key=lambda midi: abs(midi - centre))
+
+
+def bass_from_chords(chords, beats, tight):
+    """Bass line from chord roots.
+
+    ``tight`` (nes): a root quarter-note on every beat, the fifth on every
+    fourth beat. Loose (band): one held root per chord segment.
+    Returns [start, duration, midi].
+    """
+    notes = []
+    if not chords:
+        return notes
+    if not tight or len(beats) < 2:
+        for start, end, root_pc, pcs in chords:
+            notes.append([start, max(end - start, 0.05), float(bass_root_pitch(root_pc))])
+        return notes
+    step = float(np.median(np.diff(beats)))
+    beat_index = 0
+    for start, end, root_pc, pcs in chords:
+        root = bass_root_pitch(root_pc)
+        fifth_pc = (root_pc + 7) % 12
+        fifth = bass_root_pitch(fifth_pc)
+        moment = start
+        while moment < end - 1e-6:
+            midi = fifth if beat_index % 4 == 3 else root
+            notes.append([moment, step * 0.85, float(midi)])
+            moment += step
+            beat_index += 1
+    return notes
+
+
+def drum_pattern(drum_hits, beats, steps=DRUM_PATTERN_STEPS,
+                 min_share=DRUM_PATTERN_MIN_SHARE):
+    """Loop the dominant per-bar drum pattern instead of raw onsets.
+
+    Bars are four beats. Each hit maps to a 16th-note slot; slots where a kind
+    fires in at least ``min_share`` of bars form the pattern, replayed every
+    bar with the slot's mean velocity. Falls back to the raw hits when there is
+    too little material to vote on.
+    """
+    if len(beats) < 5 or not drum_hits:
+        return drum_hits
+    step = float(np.median(np.diff(beats)))
+    bar = 4.0 * step
+    first = float(beats[0])
+    last = max(onset for onset, kind, velocity in drum_hits)
+    bar_count = int((last - first) / bar) + 1
+    if bar_count < 4:
+        return drum_hits
+    slots = {}
+    for onset, kind, velocity in drum_hits:
+        position = (onset - first) % bar
+        slot = int(round(position / bar * steps)) % steps
+        slots.setdefault((slot, kind), []).append(velocity)
+    pattern = [
+        (slot, kind, float(np.mean(velocities)))
+        for (slot, kind), velocities in slots.items()
+        if len(velocities) >= min_share * bar_count
+    ]
+    if not pattern:
+        return drum_hits
+    pattern.sort()
+    hits = []
+    for index in range(bar_count):
+        bar_start = first + index * bar
+        for slot, kind, velocity in pattern:
+            hits.append((bar_start + slot / steps * bar, kind, velocity))
+    return hits
 
 
 def bass_from_stem(bass_signal, sample_rate):
@@ -857,7 +1076,7 @@ def render_pad(events, sample_rate, transpose, total):
 
 def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
                 lead_notes=None, bass_notes=None, drum_hits=None,
-                arp=False, vibrato=False):
+                arp=False, vibrato=False, chords=None):
     """Render the polyphony as a small chip band, so it sounds like several
     instruments: a bright pulse lead, a hollow-square pulse harmony, a triangle
     bass and a noise drum channel (kick/snare/hat), mixed and levelled once by
@@ -874,22 +1093,46 @@ def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
     span = max(end for start, end, pitch, amplitude in events)
     total = int(span * sample_rate) + sample_rate
 
-    # Harmony: arpeggio (nes) or a stacked pad (band).
-    if arp:
+    # Harmony: clean voiced triads from the detected chords when available,
+    # else the raw transcription; arpeggiated (nes) or stacked (band).
+    if chords:
+        if arp:
+            buffer = render_chord_arp(chords, sample_rate, transpose, total)
+        else:
+            buffer = render_chord_pad(chords, sample_rate, transpose, total)
+    elif arp:
         buffer = render_arp(events, sample_rate, transpose, total)
     else:
         buffer = render_pad(events, sample_rate, transpose, total)
 
-    # Lead: the smooth top line, bright pulse, vibrato on sustained notes.
+    # Lead: the smooth top line, bright pulse; portamento slides between
+    # adjacent legato notes, vibrato on other sustained notes.
     lead = lead_notes if lead_notes is not None else melody_line(events)
     vibrato_peak = 2.0 ** (VIBRATO_CENTS / 1200.0)
+    previous_end = None
+    previous_midi = None
     for note in lead:
         start, duration, midi = note[0], note[1], note[2]
         count = int(duration * sample_rate)
         if count <= 0:
             continue
         frequency = float(midi_to_hz(midi + transpose))
-        if vibrato and duration >= LEAD_VIBRATO_MIN_SECONDS:
+        slide = (
+            previous_end is not None
+            and 0.0 <= start - previous_end <= SLIDE_MAX_GAP_SECONDS
+            and 0 < abs(midi - previous_midi) <= SLIDE_MAX_SEMITONES
+        )
+        if slide:
+            from_frequency = float(midi_to_hz(previous_midi + transpose))
+            glide = min(max(int(SLIDE_SECONDS * sample_rate), 1), count)
+            frequencies = np.full(count, frequency)
+            frequencies[:glide] = from_frequency * (
+                (frequency / from_frequency) ** (np.arange(glide) / glide)
+            )
+            phase = 2.0 * np.pi * np.cumsum(frequencies) / sample_rate
+            tone = band_limited_pulse(phase, max(from_frequency, frequency),
+                                      sample_rate, duty)
+        elif vibrato and duration >= LEAD_VIBRATO_MIN_SECONDS:
             phase = harmonic_phase(frequency, count, sample_rate)
             tone = band_limited_pulse(phase, frequency * vibrato_peak,
                                       sample_rate, duty)
@@ -902,6 +1145,8 @@ def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
         stop = min(offset + count, total)
         if offset < total:
             buffer[offset:stop] += tone[:stop - offset]
+        previous_end = start + duration
+        previous_midi = midi
 
     # Bass: the real bass stem (bass_notes) when given, else the lowest line.
     low_line = bass_notes if bass_notes is not None else bass_line(events)
@@ -1649,34 +1894,48 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         events = clean_events(events)
         key_line = None
         key_scale = None
+        key_tonic = None
+        key_degrees = None
         if KEY_SNAP_ENABLED:
-            key_name, key_scale = detect_key(events)
+            key_name, key_scale, key_tonic, key_degrees = detect_key(events)
             if key_scale:
                 events, moved = snap_to_key(events, key_scale)
                 key_line = f"key: {key_name} ({moved} notes snapped)"
         lead_notes = melody_line(events)
-        bass_notes = bass_from_stem(stems.get("bass"), sample_rate)
-        if key_scale:
-            bass_notes = snap_notes_to_key(bass_notes, key_scale)
         drum_hits = detect_drums(stems.get("drums"), sample_rate)
         nes = voices == VOICES_NES
-        if nes:
-            # Tighten to the song's beat grid (best effort; fall back if it fails).
-            try:
-                mix = decode_mix(origin, DEFAULT_RATE)
-                tempo, beat_times = track_beats(mix, DEFAULT_RATE)
+
+        # Arrange rather than replay: reduce the events to a chord progression
+        # for the accompaniment, put the bass on chord roots, and (nes) loop
+        # the per-bar drum pattern on a tight grid. Best effort - any failure
+        # falls back to the transcription-replay path.
+        chords = []
+        bass_notes = []
+        try:
+            mix = decode_mix(origin, DEFAULT_RATE)
+            tempo, beat_times = track_beats(mix, DEFAULT_RATE)
+            span = max(end for start, end, pitch, amplitude in events)
+            grid, beats = build_grid(beat_times, tempo, span, subdivisions=4)
+            if key_tonic is not None:
+                triads = diatonic_triads(key_tonic, key_degrees)
+                chords = detect_chords(events, beats, triads)
+                bass_notes = bass_from_chords(chords, beats, tight=nes)
+            if nes:
                 if lead_notes:
                     lead_notes = quantize_notes(lead_notes, tempo, beat_times)
-                if bass_notes:
-                    bass_notes = quantize_notes(bass_notes, tempo, beat_times)
-                span = max(end for start, end, pitch, amplitude in events)
-                grid, beats = build_grid(beat_times, tempo, span, subdivisions=4)
+                drum_hits = drum_pattern(drum_hits, beats)
                 drum_hits = snap_drums(drum_hits, grid)
-            except Exception:
-                pass
+        except Exception:
+            chords = []
+        if not bass_notes:
+            bass_notes = bass_from_stem(stems.get("bass"), sample_rate)
+            if key_scale:
+                bass_notes = snap_notes_to_key(bass_notes, key_scale)
+
         voice = render_band(events, rate, duty, transpose,
                             lead_notes=lead_notes, bass_notes=bass_notes,
-                            drum_hits=drum_hits, arp=nes, vibrato=nes)
+                            drum_hits=drum_hits, arp=nes, vibrato=nes,
+                            chords=chords)
         samples_u8 = to_uint8(quantize(voice, bits))
         write_output(destination, samples_u8, rate, 1)
         quality_ok, report = validate_audio(samples_u8, rate, len(events))
@@ -1684,6 +1943,8 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         if key_line:
             info.append(key_line)
         detail = f"bass: {len(bass_notes)} notes, drums: {len(drum_hits)} hits"
+        if chords:
+            detail += f", chords: {len(chords)} segments"
         if nes:
             detail += ", arpeggio, beat-quantised"
         info.append(detail)
