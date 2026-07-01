@@ -146,6 +146,15 @@ ECHO_FEEDBACK = 0.35
 HARMONY_DUTY = 0.5
 HARMONY_GAIN = 0.5
 BASS_REGISTER_CEILING = 55
+# "band" also lays down a real rhythm section from the Demucs bass and drums
+# stems: the bass stem is pitch-tracked onto the triangle voice, and drum onsets
+# fire the noise channel (kick = low thump, snare/hat = bright burst). The noise
+# is seeded so the output stays deterministic.
+BASS_STEM_FMIN = 41.0
+BASS_STEM_FMAX = 330.0
+NOISE_SEED = 0
+KICK_GAIN = 0.7
+SNARE_GAIN = 0.4
 
 
 class ConversionError(Exception):
@@ -555,13 +564,87 @@ def bass_line(events, frame=MELODY_FRAME, ceiling=BASS_REGISTER_CEILING):
     return notes
 
 
-def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0):
-    """Render the polyphony as a small chip band, so it sounds like several
-    instruments: a bright pulse lead, a hollow-square pulse harmony pad, and a
-    triangle bass — mixed and levelled once by the smooth limiter.
+def bass_from_stem(bass_signal, sample_rate):
+    """Pitch-track the Demucs bass stem into a real bass note line.
 
-    Every transcribed note is kept (polyphony). Pitches stay as transcribed; a
-    uniform ``transpose`` is applied to all three channels.
+    Reuses the pYIN pitch pipeline but skips the melody octave-folding so the
+    notes keep their true low register. Returns [start, duration, midi] or [].
+    """
+    if bass_signal is None or bass_signal.size == 0:
+        return []
+    f0, voiced = track_pitch(bass_signal, sample_rate,
+                             fmin=BASS_STEM_FMIN, fmax=BASS_STEM_FMAX)
+    if not voiced.any():
+        return []
+    f0 = smooth_pitch(f0, voiced, window=5)
+    notes = merge_notes(segment_notes(f0, voiced, HOP, sample_rate))
+    return [note for note in notes if note[1] >= MIN_NOTE_SECONDS]
+
+
+def detect_drums(drums_signal, sample_rate):
+    """Onset times of the Demucs drums stem, each tagged kick (low) or not.
+
+    Returns [(time_seconds, is_kick)]. A hit is a kick when its onset window has
+    more energy below 200 Hz than above (kick drum vs snare/hi-hat).
+    """
+    if drums_signal is None or drums_signal.size == 0:
+        return []
+    import librosa
+    onsets = librosa.onset.onset_detect(
+        y=drums_signal, sr=sample_rate, units="time", backtrack=True,
+    )
+    window = int(0.03 * sample_rate)
+    hits = []
+    for onset in onsets:
+        start = int(onset * sample_rate)
+        chunk = drums_signal[start:start + window]
+        if chunk.size < 16:
+            hits.append((float(onset), True))
+            continue
+        spectrum = np.abs(np.fft.rfft(chunk))
+        frequencies = np.fft.rfftfreq(chunk.size, 1.0 / sample_rate)
+        low = spectrum[frequencies < 200].sum()
+        high = spectrum[frequencies >= 200].sum()
+        hits.append((float(onset), bool(low >= high)))
+    return hits
+
+
+def noise_burst(sample_rate, rng, is_kick):
+    """A single drum hit for the noise channel, peak-normalised to ~1.
+
+    Kick: a short low sine thump plus a little noise. Snare/hi-hat: a brighter,
+    shorter noise burst. ``rng`` keeps it deterministic.
+    """
+    if is_kick:
+        count = int(0.12 * sample_rate)
+        time = np.arange(count) / sample_rate
+        envelope = np.exp(-time / 0.045)
+        tone = np.sin(2.0 * np.pi * 60.0 * time) * envelope
+        noise = (rng.random(count) * 2.0 - 1.0) * envelope * 0.4
+        out = tone * 0.9 + noise
+    else:
+        count = int(0.08 * sample_rate)
+        time = np.arange(count) / sample_rate
+        envelope = np.exp(-time / 0.02)
+        out = (rng.random(count) * 2.0 - 1.0) * envelope
+    # Roll the very top off (a 3-tap low-pass nulls Nyquist) so the noise stays
+    # below the band-limit guard and does not read as aliasing or sound harsh.
+    out = np.convolve(out, np.array([0.25, 0.5, 0.25]), mode="same")
+    peak = float(np.max(np.abs(out))) if out.size else 0.0
+    return out / peak if peak > 0 else out
+
+
+def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
+                bass_notes=None, drum_hits=None):
+    """Render the polyphony as a small chip band, so it sounds like several
+    instruments: a bright pulse lead, a hollow-square pulse harmony pad, a
+    triangle bass and a noise drum channel, mixed and levelled once by the
+    smooth limiter.
+
+    ``bass_notes`` (from the Demucs bass stem) plays the triangle when given,
+    else the lowest transcribed line is used; ``drum_hits`` (onsets of the drums
+    stem) fire the noise channel. Every transcribed note is kept (polyphony);
+    pitches stay as transcribed, with a uniform ``transpose`` applied.
     """
     if not events:
         return np.zeros(sample_rate, dtype=np.float32)
@@ -598,8 +681,9 @@ def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0):
         stop = min(offset + count, total)
         buffer[offset:stop] += tone[:stop - offset]
 
-    # Bass: the lowest line on the triangle voice.
-    for start, duration, midi in bass_line(events):
+    # Bass: the real bass stem (bass_notes) when given, else the lowest line.
+    low_line = bass_notes if bass_notes is not None else bass_line(events)
+    for start, duration, midi in low_line:
         count = int(duration * sample_rate)
         if count <= 0:
             continue
@@ -611,6 +695,18 @@ def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0):
         offset = int(start * sample_rate)
         stop = min(offset + count, total)
         buffer[offset:stop] += tone[:stop - offset]
+
+    # Drums: fire the noise channel at each detected onset.
+    if drum_hits:
+        rng = np.random.default_rng(NOISE_SEED)
+        for onset, is_kick in drum_hits:
+            offset = int(onset * sample_rate)
+            if offset >= total:
+                continue
+            burst = noise_burst(sample_rate, rng, is_kick)
+            gain = KICK_GAIN if is_kick else SNARE_GAIN
+            stop = min(offset + burst.size, total)
+            buffer[offset:stop] += burst[:stop - offset] * gain
 
     return soft_limiter(buffer, sample_rate).astype(np.float32)
 
@@ -1326,11 +1422,17 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
 
     if method == METHOD_TRANSCRIBE and voices == VOICES_BAND:
         events = transcribe_events(signal, sample_rate, picked)
-        voice = render_band(events, rate, duty, transpose)
+        bass_notes = bass_from_stem(stems.get("bass"), sample_rate)
+        drum_hits = detect_drums(stems.get("drums"), sample_rate)
+        voice = render_band(events, rate, duty, transpose,
+                            bass_notes=bass_notes, drum_hits=drum_hits)
         samples_u8 = to_uint8(quantize(voice, bits))
         write_output(destination, samples_u8, rate, 1)
         quality_ok, report = validate_audio(samples_u8, rate, len(events))
         info.append("voices: band")
+        info.append(
+            f"bass stem: {len(bass_notes)} notes, drums: {len(drum_hits)} hits"
+        )
         return destination, quality_ok, info + report
 
     if method == METHOD_TRANSCRIBE and voices == VOICES_CHORDS:
