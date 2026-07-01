@@ -77,7 +77,8 @@ DEFAULT_METHOD = METHOD_TRANSCRIBE
 # octave shift would wreck the harmony), so only a uniform transpose is applied.
 VOICES_CHORDS = "chords"
 VOICES_LEAD = "lead"
-VOICES_CHOICES = (VOICES_CHORDS, VOICES_LEAD)
+VOICES_BAND = "band"
+VOICES_CHOICES = (VOICES_CHORDS, VOICES_LEAD, VOICES_BAND)
 DEFAULT_VOICES = VOICES_CHORDS
 CHORD_MIN_SECONDS = 0.04
 # Each chord voice is scaled by its transcribed loudness for real dynamics; the
@@ -137,6 +138,14 @@ VIBRATO_DELAY = 0.12
 LEAD_GAIN = 0.6
 BASS_GAIN = 0.45
 ECHO_FEEDBACK = 0.35
+# "band" voices: split the polyphony into distinct chip channels so it sounds
+# like several instruments. The harmony pad uses a hollow-square duty (0.5) at a
+# lower gain than the pulse lead (LEAD_GAIN) so the tune stays on top; the bass
+# is the lowest transcribed line folded below BASS_REGISTER_CEILING and played
+# on the triangle voice.
+HARMONY_DUTY = 0.5
+HARMONY_GAIN = 0.5
+BASS_REGISTER_CEILING = 55
 
 
 class ConversionError(Exception):
@@ -509,6 +518,100 @@ def render_chords(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
         offset = int(start * sample_rate)
         stop = min(offset + count, total)
         buffer[offset:stop] += tone[:stop - offset]
+    return soft_limiter(buffer, sample_rate).astype(np.float32)
+
+
+def bass_line(events, frame=MELODY_FRAME, ceiling=BASS_REGISTER_CEILING):
+    """Lowest active note per frame, folded into the bass register.
+
+    Returns [start_seconds, duration_seconds, midi_pitch] (monophonic), the
+    counterpart to ``melody_line`` for the band's triangle bass channel.
+    """
+    if not events:
+        return []
+    end = max(end_time for start, end_time, pitch, amplitude in events)
+    frames = int(end / frame) + 1
+    lowest = [None] * frames
+    for start, end_time, pitch, amplitude in events:
+        first = max(0, int(start / frame))
+        last = min(frames, int(end_time / frame) + 1)
+        for index in range(first, last):
+            if lowest[index] is None or pitch < lowest[index]:
+                lowest[index] = pitch
+    notes = []
+    index = 0
+    while index < frames:
+        if lowest[index] is None:
+            index += 1
+            continue
+        run = index
+        while run < frames and lowest[run] == lowest[index]:
+            run += 1
+        midi = lowest[index]
+        while midi > ceiling:
+            midi -= 12
+        notes.append([index * frame, (run - index) * frame, float(midi)])
+        index = run
+    return notes
+
+
+def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0):
+    """Render the polyphony as a small chip band, so it sounds like several
+    instruments: a bright pulse lead, a hollow-square pulse harmony pad, and a
+    triangle bass — mixed and levelled once by the smooth limiter.
+
+    Every transcribed note is kept (polyphony). Pitches stay as transcribed; a
+    uniform ``transpose`` is applied to all three channels.
+    """
+    if not events:
+        return np.zeros(sample_rate, dtype=np.float32)
+    span = max(end for start, end, pitch, amplitude in events)
+    total = int(span * sample_rate) + sample_rate
+    buffer = np.zeros(total, dtype=np.float64)
+
+    # Harmony pad: every note, hollow-square pulse, scaled by transcribed loudness.
+    for start, end, pitch, amplitude in events:
+        count = int((end - start) * sample_rate)
+        if count <= 0:
+            continue
+        frequency = float(midi_to_hz(pitch + transpose))
+        time = np.arange(count) / sample_rate
+        tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
+                                  sample_rate, HARMONY_DUTY)
+        loudness = CHORD_AMP_FLOOR + (1.0 - CHORD_AMP_FLOOR) * min(1.0, amplitude)
+        tone *= chip_envelope(count, sample_rate) * HARMONY_GAIN * loudness
+        offset = int(start * sample_rate)
+        stop = min(offset + count, total)
+        buffer[offset:stop] += tone[:stop - offset]
+
+    # Lead: the smooth top line, bright pulse, louder — carries the tune.
+    for start, duration, midi in melody_line(events):
+        count = int(duration * sample_rate)
+        if count <= 0:
+            continue
+        frequency = float(midi_to_hz(midi + transpose))
+        time = np.arange(count) / sample_rate
+        tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
+                                  sample_rate, duty)
+        tone *= chip_envelope(count, sample_rate) * LEAD_GAIN
+        offset = int(start * sample_rate)
+        stop = min(offset + count, total)
+        buffer[offset:stop] += tone[:stop - offset]
+
+    # Bass: the lowest line on the triangle voice.
+    for start, duration, midi in bass_line(events):
+        count = int(duration * sample_rate)
+        if count <= 0:
+            continue
+        frequency = float(midi_to_hz(midi + transpose))
+        time = np.arange(count) / sample_rate
+        tone = band_limited_triangle(2.0 * np.pi * frequency * time, frequency,
+                                     sample_rate)
+        tone *= chip_envelope(count, sample_rate, decay=0.2, sustain=0.4) * BASS_GAIN
+        offset = int(start * sample_rate)
+        stop = min(offset + count, total)
+        buffer[offset:stop] += tone[:stop - offset]
+
     return soft_limiter(buffer, sample_rate).astype(np.float32)
 
 
@@ -1220,6 +1323,15 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
     stems, sample_rate = separate_sources(origin, use_cache=use_cache, cache_dir=cache_dir)
     signal, fmin, fmax, picked = select_melody(stems, source)
     info = [f"melody source: {picked}", f"method: {method}"]
+
+    if method == METHOD_TRANSCRIBE and voices == VOICES_BAND:
+        events = transcribe_events(signal, sample_rate, picked)
+        voice = render_band(events, rate, duty, transpose)
+        samples_u8 = to_uint8(quantize(voice, bits))
+        write_output(destination, samples_u8, rate, 1)
+        quality_ok, report = validate_audio(samples_u8, rate, len(events))
+        info.append("voices: band")
+        return destination, quality_ok, info + report
 
     if method == METHOD_TRANSCRIBE and voices == VOICES_CHORDS:
         events = transcribe_events(signal, sample_rate, picked)

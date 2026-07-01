@@ -56,8 +56,10 @@ def build_parser():
     )
     parser.add_argument(
         "-V", "--voices", choices=VOICES_CHOICES, default=DEFAULT_VOICES,
-        help="with --method transcribe: 'chords' plays every note (harmony and "
-             "bass kept) or 'lead' plays a single melody line "
+        help="with --method transcribe: 'chords' plays every note in one pulse "
+             "voice (harmony and bass kept), 'lead' plays a single melody line, "
+             "or 'band' splits the polyphony into a pulse lead, a second pulse "
+             "harmony and a triangle bass so it sounds like several instruments "
              f"(default: {DEFAULT_VOICES})",
     )
     parser.add_argument(
