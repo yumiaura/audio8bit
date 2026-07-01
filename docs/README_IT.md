@@ -39,6 +39,9 @@ audio8bit -i song.mp3
 # Just the main melody, no chords
 audio8bit -i song.mp3 -V lead
 
+# Band multi-strumento: lead a impulso + armonia a impulso + basso a triangolo
+audio8bit -i song.mp3 -V band
+
 # Take the tune from the singing or from the instruments
 audio8bit -i song.mp3 -s vocals
 audio8bit -i song.mp3 -s instrumental
@@ -61,7 +64,7 @@ audio8bit --version
 - `-f, --format` - formato di uscita, es. `ogg`, `wav` (predefinito: lo stesso dell'ingresso)
 - `-s, --source` - sorgente della melodia: `vocals`, `instrumental`, `auto` (predefinito: `auto`)
 - `-m, --method` - individuazione delle note: `transcribe` o `pitch` (predefinito: `transcribe`)
-- `-V, --voices` - `chords` (con armonia) o `lead` (linea singola) (predefinito: `chords`)
+- `-V, --voices` - `chords` (con armonia) o `lead` (linea singola) o `band` (multi-strumento: lead a impulso + armonia a impulso + basso a triangolo) (predefinito: `chords`)
 - `--transpose` - cambio di tonalita' in semitoni (predefinito: `0`)
 - `--bits` - profondita' di bit, 1-8, piu' basso e' piu' grezzo (predefinito: `8`)
 - `--rate` - frequenza di campionamento in Hz, piu' bassa e' piu' retro (predefinito: `22050`)
@@ -75,7 +78,7 @@ Codici di uscita: `0` successo, `1` errore di conversione, `2` argomenti errati.
 ### Funzionalita'
 
 - Funziona con canzoni **vocali** e **strumentali** - sceglie automaticamente la sorgente della melodia.
-- **Trascrizione polifonica** (basic-pitch) mantiene gli accordi e il basso, oppure li riduce a una singola linea principale.
+- **Trascrizione polifonica** (basic-pitch) mantiene gli accordi e il basso, oppure li riduce a una singola linea principale. La modalita `band` li distribuisce su canali chip (lead a impulso, armonia a impulso, basso a triangolo).
 - Separazione delle sorgenti con **Demucs**, deterministica, cosi' lo stesso ingresso produce sempre lo stesso risultato.
 - Sintesi chiptune senza aliasing con dinamica del volume e un limiter morbido.
 - Trasposizione di tonalita' e profondita' di bit, frequenza di campionamento e tono degli impulsi regolabili.

@@ -39,6 +39,9 @@ audio8bit -i song.mp3
 # Just the main melody, no chords
 audio8bit -i song.mp3 -V lead
 
+# 多乐器乐队：脉冲主音 + 脉冲和声 + 三角波贝斯
+audio8bit -i song.mp3 -V band
+
 # Take the tune from the singing or from the instruments
 audio8bit -i song.mp3 -s vocals
 audio8bit -i song.mp3 -s instrumental
@@ -61,7 +64,7 @@ audio8bit --version
 - `-f, --format` - 输出格式，例如 `ogg`、`wav`（默认：与输入相同）
 - `-s, --source` - 旋律来源：`vocals`、`instrumental`、`auto`（默认：`auto`）
 - `-m, --method` - 音符识别：`transcribe` 或 `pitch`（默认：`transcribe`）
-- `-V, --voices` - `chords`（带和声）或 `lead`（单声部）（默认：`chords`）
+- `-V, --voices` - `chords`（带和声）或 `lead`（单声部） 或 `band`（多乐器：脉冲主音 + 脉冲和声 + 三角波贝斯）（默认：`chords`）
 - `--transpose` - 以半音为单位的调式移动（默认：`0`）
 - `--bits` - 位深度，1-8，越低越粗糙（默认：`8`）
 - `--rate` - 采样率（Hz），越低越复古（默认：`22050`）
@@ -75,7 +78,7 @@ audio8bit --version
 ### 功能特性
 
 - 同时支持**人声**歌曲和**纯乐器**作品 - 自动选择旋律来源。
-- **复音转录**（basic-pitch）保留和弦与贝斯，或将其简化为单一主旋律线。
+- **复音转录**（basic-pitch）保留和弦与贝斯，或将其简化为单一主旋律线。 `band` 模式将它们分配到不同的芯片声道（脉冲主音、脉冲和声、三角波贝斯）。
 - 使用 **Demucs** 进行声源分离，结果是确定性的，因此相同的输入始终给出相同的结果。
 - 无混叠的芯片音乐合成，带有响度动态和平滑的限幅器。
 - 调式移调，以及可调的位深度、采样率和脉冲音色。

@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- New `--voices band` mode: keeps the full polyphony but splits it into distinct
+  chip channels - a pulse lead, a second pulse harmony (hollow-square duty) and a
+  triangle bass - so the result sounds like several instruments instead of one
+  pulse voice playing a chord.
+
 ## 0.0.2 - 2026-06-30
 
 ### Added
