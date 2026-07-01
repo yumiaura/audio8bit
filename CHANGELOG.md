@@ -8,10 +8,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- New `--voices band` mode: keeps the full polyphony but splits it into distinct
-  chip channels - a pulse lead, a second pulse harmony (hollow-square duty) and a
-  triangle bass - so the result sounds like several instruments instead of one
-  pulse voice playing a chord.
+- New `--voices band` mode: arranges the song as a full chip band instead of one
+  pulse voice playing a chord. It keeps the full polyphony on a pulse lead and a
+  second pulse harmony (hollow-square duty), adds a triangle bass pitch-tracked
+  from the Demucs bass stem, and a seeded noise drum channel (kick + snare/hi-hat)
+  from the drums stem - so it sounds like several instruments with a real rhythm
+  section. Output stays deterministic.
 
 ## 0.0.2 - 2026-06-30
 

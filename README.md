@@ -39,7 +39,7 @@ audio8bit -i song.mp3
 # Just the main melody, no chords
 audio8bit -i song.mp3 -V lead
 
-# Multi-instrument band: pulse lead + pulse harmony + triangle bass
+# Full chip band: pulse lead + pulse harmony + triangle bass + noise drums
 audio8bit -i song.mp3 -V band
 
 # Take the tune from the singing or from the instruments
@@ -64,7 +64,7 @@ audio8bit --version
 - `-f, --format` - output format, e.g. `ogg`, `wav` (default: same as input)
 - `-s, --source` - melody source: `vocals`, `instrumental`, `auto` (default: `auto`)
 - `-m, --method` - note finding: `transcribe` or `pitch` (default: `transcribe`)
-- `-V, --voices` - `chords` (one voice, with harmony), `lead` (single line), or `band` (multi-instrument: pulse lead + pulse harmony + triangle bass) (default: `chords`)
+- `-V, --voices` - `chords` (one voice, with harmony), `lead` (single line), or `band` (full chip band: pulse lead + pulse harmony + triangle bass from the bass stem + noise drums from the drums stem) (default: `chords`)
 - `--transpose` - key shift in semitones (default: `0`)
 - `--bits` - bit depth, 1-8, lower is crunchier (default: `8`)
 - `--rate` - sample rate in Hz, lower is more retro (default: `22050`)
@@ -78,7 +78,7 @@ Exit codes: `0` success, `1` conversion error, `2` bad arguments.
 ### Features
 
 - Works with **vocal** songs and **instrumentals** - picks the melody source automatically.
-- **Polyphonic transcription** (basic-pitch) keeps the chords and bass, reduces them to a single lead line, or splits them across chip channels as a multi-instrument band (pulse lead, pulse harmony, triangle bass).
+- **Polyphonic transcription** (basic-pitch) keeps the chords and bass, reduces them to a single lead line, or arranges them as a full chip band (pulse lead, pulse harmony, a triangle bass from the bass stem and noise drums from the drums stem).
 - Source separation with **Demucs**, deterministic so the same input always gives the same result.
 - Alias-free chiptune synthesis with loudness dynamics and a smooth limiter.
 - Key transposition and adjustable bit depth, sample rate and pulse tone.

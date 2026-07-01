@@ -39,7 +39,7 @@ audio8bit -i song.mp3
 # Apenas a melodia principal, sem acordes
 audio8bit -i song.mp3 -V lead
 
-# Banda multi-instrumento: lead de pulso + harmonia de pulso + baixo de triangulo
+# Banda multi-instrumento: lead de pulso + harmonia de pulso + baixo de triangulo + bateria de ruido
 audio8bit -i song.mp3 -V band
 
 # Pega a melodia do canto ou dos instrumentos
@@ -64,7 +64,7 @@ audio8bit --version
 - `-f, --format` - formato de saida, por exemplo `ogg`, `wav` (padrao: o mesmo da entrada)
 - `-s, --source` - fonte da melodia: `vocals`, `instrumental`, `auto` (padrao: `auto`)
 - `-m, --method` - deteccao de notas: `transcribe` ou `pitch` (padrao: `transcribe`)
-- `-V, --voices` - `chords` (com harmonia) ou `lead` (linha unica) ou `band` (multi-instrumento: lead de pulso + harmonia de pulso + baixo de triangulo) (padrao: `chords`)
+- `-V, --voices` - `chords` (com harmonia) ou `lead` (linha unica) ou `band` (multi-instrumento: lead de pulso + harmonia de pulso + baixo de triangulo + bateria de ruido) (padrao: `chords`)
 - `--transpose` - mudanca de tom em semitons (padrao: `0`)
 - `--bits` - profundidade de bits, 1-8, quanto menor mais granulado (padrao: `8`)
 - `--rate` - taxa de amostragem em Hz, quanto menor mais retro (padrao: `22050`)
@@ -78,7 +78,7 @@ Codigos de saida: `0` sucesso, `1` erro de conversao, `2` argumentos invalidos.
 ### Recursos
 
 - Funciona com musicas **vocais** e **instrumentais** - escolhe a fonte da melodia automaticamente.
-- **Transcricao polifonica** (basic-pitch) mantem os acordes e o baixo, ou os reduz a uma unica linha principal. O modo `band` os distribui por canais de chip (lead de pulso, harmonia de pulso, baixo de triangulo).
+- **Transcricao polifonica** (basic-pitch) mantem os acordes e o baixo, ou os reduz a uma unica linha principal. O modo `band` os distribui por canais de chip (lead de pulso, harmonia de pulso, baixo de triangulo). O baixo vem do stem de baixo e a bateria do stem de bateria.
 - Separacao de fontes com **Demucs**, deterministica, de modo que a mesma entrada sempre produz o mesmo resultado.
 - Sintese chiptune sem aliasing com dinamica de volume e um limitador suave.
 - Transposicao de tom e profundidade de bits, taxa de amostragem e tom de pulso ajustaveis.

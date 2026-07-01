@@ -58,9 +58,9 @@ def build_parser():
         "-V", "--voices", choices=VOICES_CHOICES, default=DEFAULT_VOICES,
         help="with --method transcribe: 'chords' plays every note in one pulse "
              "voice (harmony and bass kept), 'lead' plays a single melody line, "
-             "or 'band' splits the polyphony into a pulse lead, a second pulse "
-             "harmony and a triangle bass so it sounds like several instruments "
-             f"(default: {DEFAULT_VOICES})",
+             "or 'band' arranges it as a full chip band - pulse lead, a second "
+             "pulse harmony, a triangle bass from the bass stem and noise drums "
+             f"from the drums stem (default: {DEFAULT_VOICES})",
     )
     parser.add_argument(
         "--transpose", type=int, default=DEFAULT_TRANSPOSE,

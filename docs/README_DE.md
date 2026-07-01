@@ -39,7 +39,7 @@ audio8bit -i song.mp3
 # Just the main melody, no chords
 audio8bit -i song.mp3 -V lead
 
-# Mehrinstrumentale Band: Puls-Lead + Puls-Harmonie + Dreieck-Bass
+# Mehrinstrumentale Band: Puls-Lead + Puls-Harmonie + Dreieck-Bass + Rausch-Drums
 audio8bit -i song.mp3 -V band
 
 # Take the tune from the singing or from the instruments
@@ -64,7 +64,7 @@ audio8bit --version
 - `-f, --format` - Ausgabeformat, z. B. `ogg`, `wav` (Standard: wie die Eingabe)
 - `-s, --source` - Melodiequelle: `vocals`, `instrumental`, `auto` (Standard: `auto`)
 - `-m, --method` - Notenfindung: `transcribe` oder `pitch` (Standard: `transcribe`)
-- `-V, --voices` - `chords` (mit Harmonie) oder `lead` (einzelne Linie) oder `band` (Mehrinstrumental: Puls-Lead + Puls-Harmonie + Dreieck-Bass) (Standard: `chords`)
+- `-V, --voices` - `chords` (mit Harmonie) oder `lead` (einzelne Linie) oder `band` (Mehrinstrumental: Puls-Lead + Puls-Harmonie + Dreieck-Bass + Rausch-Drums) (Standard: `chords`)
 - `--transpose` - Tonartverschiebung in Halbtoenen (Standard: `0`)
 - `--bits` - Bittiefe, 1-8, niedriger ist knuspriger (Standard: `8`)
 - `--rate` - Abtastrate in Hz, niedriger ist nostalgischer (Standard: `22050`)
@@ -78,7 +78,7 @@ Exit-Codes: `0` Erfolg, `1` Konvertierungsfehler, `2` ungueltige Argumente.
 ### Funktionen
 
 - Funktioniert mit **Gesangs**-Liedern und **Instrumentalstuecken** - waehlt die Melodiequelle automatisch aus.
-- **Polyphone Transkription** (basic-pitch) behaelt die Akkorde und den Bass oder reduziert sie auf eine einzelne Lead-Linie. Der Modus `band` verteilt sie auf Chip-Kanaele (Puls-Lead, Puls-Harmonie, Dreieck-Bass).
+- **Polyphone Transkription** (basic-pitch) behaelt die Akkorde und den Bass oder reduziert sie auf eine einzelne Lead-Linie. Der Modus `band` verteilt sie auf Chip-Kanaele (Puls-Lead, Puls-Harmonie, Dreieck-Bass). Der Bass stammt aus dem Bass-Stem und das Schlagzeug aus dem Drums-Stem.
 - Quellentrennung mit **Demucs**, deterministisch, sodass dieselbe Eingabe immer dasselbe Ergebnis liefert.
 - Alias-freie Chiptune-Synthese mit Lautstaerkedynamik und einem weichen Limiter.
 - Tonartverschiebung sowie einstellbare Bittiefe, Abtastrate und Pulston.
