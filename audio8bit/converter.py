@@ -162,8 +162,14 @@ HAT_GAIN = 0.28
 # Notes and drums are snapped to the song's beat grid; the lead gets vibrato on
 # sustained notes.
 ARP_STEP_SECONDS = 1.0 / 48.0
-ARP_GAIN = 0.42
+ARP_GAIN = 0.30
 LEAD_VIBRATO_MIN_SECONDS = 0.3
+# Keep the lead on top of the accompaniment: the harmony bed is trimmed and,
+# wherever the lead is playing, ducked by HARMONY_DUCK (sidechain-style, with a
+# short smoothing window so the gain change itself is inaudible).
+CHORD_PAD_VOICE_GAIN = 0.22
+HARMONY_DUCK = 0.35
+DUCK_SMOOTH_SECONDS = 0.03
 DRUM_SNAP_SECONDS = 0.12
 # Band/nes note hygiene: transcription errors are the top blocker to a melodic
 # result. Events are cleaned (drop short-and-quiet litter, bridge legato gaps)
@@ -792,7 +798,7 @@ def render_chord_pad(chords, sample_rate, transpose, total):
             frequency = float(midi_to_hz(voice_pitch(pc) + transpose))
             tone = band_limited_pulse(2.0 * np.pi * frequency * time, frequency,
                                       sample_rate, HARMONY_DUTY)
-            tone *= envelope * HARMONY_GAIN * (1.0 / len(pcs)) * 2.0
+            tone *= envelope * CHORD_PAD_VOICE_GAIN
             buffer[offset:stop] += tone[:stop - offset]
     return buffer
 
@@ -1105,9 +1111,22 @@ def render_band(events, sample_rate, duty=DEFAULT_DUTY, transpose=0,
     else:
         buffer = render_pad(events, sample_rate, transpose, total)
 
+    lead = lead_notes if lead_notes is not None else melody_line(events)
+
+    # Duck the harmony bed wherever the lead plays (sidechain-style) so the
+    # tune always reads on top; the smoothed mask keeps the gain change silent.
+    if lead and HARMONY_DUCK > 0:
+        mask = np.zeros(total)
+        for note in lead:
+            first = int(note[0] * sample_rate)
+            last = min(int((note[0] + note[1]) * sample_rate), total)
+            if first < total and last > first:
+                mask[first:last] = 1.0
+        window = max(1, int(DUCK_SMOOTH_SECONDS * sample_rate))
+        buffer *= 1.0 - HARMONY_DUCK * smooth_envelope(mask, window)
+
     # Lead: the smooth top line, bright pulse; portamento slides between
     # adjacent legato notes, vibrato on other sustained notes.
-    lead = lead_notes if lead_notes is not None else melody_line(events)
     vibrato_peak = 2.0 ** (VIBRATO_CENTS / 1200.0)
     previous_end = None
     previous_midi = None
