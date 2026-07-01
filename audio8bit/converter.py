@@ -165,6 +165,23 @@ ARP_STEP_SECONDS = 1.0 / 48.0
 ARP_GAIN = 0.42
 LEAD_VIBRATO_MIN_SECONDS = 0.3
 DRUM_SNAP_SECONDS = 0.12
+# Band/nes note hygiene: transcription errors are the top blocker to a melodic
+# result. Events are cleaned (drop short-and-quiet litter, bridge legato gaps)
+# and pitches outside the detected key are snapped to the nearest scale tone.
+# Key detection is a duration-weighted pitch-class histogram correlated with the
+# Krumhansl-Schmuckler major/minor profiles.
+KEY_SNAP_ENABLED = True
+EVENT_MIN_SECONDS = 0.07
+EVENT_AMP_FLOOR = 0.25
+LEGATO_GAP_SECONDS = 0.08
+KEY_PROFILE_MAJOR = (6.35, 2.23, 3.48, 2.33, 4.38, 4.09,
+                     2.52, 5.19, 2.39, 3.66, 2.29, 2.88)
+KEY_PROFILE_MINOR = (6.33, 2.68, 3.52, 5.38, 2.60, 3.53,
+                     2.54, 4.75, 3.98, 2.69, 3.34, 3.17)
+MAJOR_SCALE_DEGREES = (0, 2, 4, 5, 7, 9, 11)
+MINOR_SCALE_DEGREES = (0, 2, 3, 5, 7, 8, 10)
+NOTE_NAMES = ("C", "C#", "D", "D#", "E", "F",
+              "F#", "G", "G#", "A", "A#", "B")
 
 
 class ConversionError(Exception):
@@ -572,6 +589,106 @@ def bass_line(events, frame=MELODY_FRAME, ceiling=BASS_REGISTER_CEILING):
         notes.append([index * frame, (run - index) * frame, float(midi)])
         index = run
     return notes
+
+
+def clean_events(events, min_seconds=EVENT_MIN_SECONDS,
+                 amp_floor=EVENT_AMP_FLOOR, gap=LEGATO_GAP_SECONDS):
+    """Tidy transcribed events: drop litter, bridge legato re-attacks.
+
+    A note is litter when it is BOTH shorter than ``min_seconds`` and quieter
+    than ``amp_floor`` of the loudest event. Same-pitch notes separated by a gap
+    of at most ``gap`` seconds are merged into one held note.
+    """
+    if not events:
+        return events
+    loudest = max(amplitude for start, end, pitch, amplitude in events) or 1.0
+    kept = [
+        [start, end, pitch, amplitude]
+        for start, end, pitch, amplitude in events
+        if not (end - start < min_seconds and amplitude < amp_floor * loudest)
+    ]
+    if not kept:
+        kept = [list(event) for event in events]
+    kept.sort(key=lambda event: (round(event[2]), event[0]))
+    merged = []
+    for event in kept:
+        previous = merged[-1] if merged else None
+        if (previous is not None
+                and round(previous[2]) == round(event[2])
+                and 0 <= event[0] - previous[1] <= gap):
+            previous[1] = max(previous[1], event[1])
+            previous[3] = max(previous[3], event[3])
+        else:
+            merged.append(event)
+    merged.sort(key=lambda event: event[0])
+    return [tuple(event) for event in merged]
+
+
+def detect_key(events):
+    """Detect the song's key from the transcribed events.
+
+    Correlates a duration-weighted pitch-class histogram with the 24
+    Krumhansl-Schmuckler profiles. Returns (name, scale_pcs) where ``name`` is
+    e.g. 'A minor' and ``scale_pcs`` is the frozenset of in-scale pitch classes.
+    """
+    histogram = np.zeros(12)
+    for start, end, pitch, amplitude in events:
+        histogram[int(round(pitch)) % 12] += max(end - start, 0.0)
+    if histogram.sum() <= 0:
+        return None, None
+    best = None
+    for mode, profile, degrees in (
+        ("major", KEY_PROFILE_MAJOR, MAJOR_SCALE_DEGREES),
+        ("minor", KEY_PROFILE_MINOR, MINOR_SCALE_DEGREES),
+    ):
+        base = np.array(profile)
+        for tonic in range(12):
+            rotated = np.roll(base, tonic)
+            score = float(np.corrcoef(histogram, rotated)[0, 1])
+            if best is None or score > best[0]:
+                scale = frozenset((tonic + degree) % 12 for degree in degrees)
+                best = (score, f"{NOTE_NAMES[tonic]} {mode}", scale)
+    return best[1], best[2]
+
+
+def snap_to_key(events, scale_pcs):
+    """Snap off-scale pitches to the nearest scale tone (one semitone away).
+
+    Returns (events, snapped_count). A pitch whose class is off-scale moves down
+    or up one semitone to land in scale (down preferred - leading tones resolve
+    down more often in practice); if neither neighbour is in scale it is kept.
+    """
+    if not scale_pcs:
+        return events, 0
+    snapped = []
+    moved = 0
+    for start, end, pitch, amplitude in events:
+        midi = int(round(pitch))
+        if midi % 12 not in scale_pcs:
+            if (midi - 1) % 12 in scale_pcs:
+                midi -= 1
+                moved += 1
+            elif (midi + 1) % 12 in scale_pcs:
+                midi += 1
+                moved += 1
+        snapped.append((start, end, float(midi), amplitude))
+    return snapped, moved
+
+
+def snap_notes_to_key(notes, scale_pcs):
+    """Snap a [start, duration, midi] note list (lead/bass) into the scale."""
+    if not scale_pcs:
+        return notes
+    out = []
+    for note in notes:
+        midi = int(round(note[2]))
+        if midi % 12 not in scale_pcs:
+            if (midi - 1) % 12 in scale_pcs:
+                midi -= 1
+            elif (midi + 1) % 12 in scale_pcs:
+                midi += 1
+        out.append([note[0], note[1], float(midi)] + list(note[3:]))
+    return out
 
 
 def bass_from_stem(bass_signal, sample_rate):
@@ -1529,8 +1646,18 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
 
     if method == METHOD_TRANSCRIBE and voices in (VOICES_BAND, VOICES_NES):
         events = transcribe_events(signal, sample_rate, picked)
+        events = clean_events(events)
+        key_line = None
+        key_scale = None
+        if KEY_SNAP_ENABLED:
+            key_name, key_scale = detect_key(events)
+            if key_scale:
+                events, moved = snap_to_key(events, key_scale)
+                key_line = f"key: {key_name} ({moved} notes snapped)"
         lead_notes = melody_line(events)
         bass_notes = bass_from_stem(stems.get("bass"), sample_rate)
+        if key_scale:
+            bass_notes = snap_notes_to_key(bass_notes, key_scale)
         drum_hits = detect_drums(stems.get("drums"), sample_rate)
         nes = voices == VOICES_NES
         if nes:
@@ -1554,6 +1681,8 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         write_output(destination, samples_u8, rate, 1)
         quality_ok, report = validate_audio(samples_u8, rate, len(events))
         info.append(f"voices: {voices}")
+        if key_line:
+            info.append(key_line)
         detail = f"bass: {len(bass_notes)} notes, drums: {len(drum_hits)} hits"
         if nes:
             detail += ", arpeggio, beat-quantised"
