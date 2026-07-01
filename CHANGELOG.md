@@ -8,12 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- New `--voices band` mode: arranges the song as a full chip band instead of one
-  pulse voice playing a chord. A pulse lead (with vibrato on sustained notes)
-  carries the tune over a fast NES-style pulse arpeggio for the harmony, a
-  triangle bass pitch-tracked from the Demucs bass stem, and a seeded noise drum
-  channel (kick / snare / hi-hat, with velocity) from the drums stem. The notes
-  and drums are snapped to the song's beat grid. Output stays deterministic.
+- New `--voices band` and `--voices nes` modes: arrange the song as a full chip
+  band instead of one pulse voice playing a chord. Both use a pulse lead, a
+  triangle bass pitch-tracked from the Demucs bass stem and a seeded noise drum
+  channel (kick / snare / hi-hat, with velocity) from the drums stem. `band`
+  stacks the harmony on a second pulse and plays loose; `nes` arpeggiates the
+  harmony NES-style, adds vibrato to sustained lead notes, and snaps the notes
+  and drums to the song's beat grid. Output stays deterministic.
 
 ## 0.0.2 - 2026-06-30
 

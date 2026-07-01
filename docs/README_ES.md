@@ -42,6 +42,9 @@ audio8bit -i song.mp3 -V lead
 # Banda multiinstrumento: lead de pulso + armonia de pulso + bajo de triangulo + bateria de ruido
 audio8bit -i song.mp3 -V band
 
+# Estilo NES: la banda con armonia en arpegio, ajustada al ritmo
+audio8bit -i song.mp3 -V nes
+
 # Toma la melodia del canto o de los instrumentos
 audio8bit -i song.mp3 -s vocals
 audio8bit -i song.mp3 -s instrumental
@@ -64,7 +67,7 @@ audio8bit --version
 - `-f, --format` - formato de salida, p. ej. `ogg`, `wav` (predeterminado: igual que la entrada)
 - `-s, --source` - fuente de la melodia: `vocals`, `instrumental`, `auto` (predeterminado: `auto`)
 - `-m, --method` - busqueda de notas: `transcribe` o `pitch` (predeterminado: `transcribe`)
-- `-V, --voices` - `chords` (con armonia) o `lead` (una sola linea) o `band` (multiinstrumento: lead de pulso + armonia de pulso + bajo de triangulo + bateria de ruido) (predeterminado: `chords`)
+- `-V, --voices` - `chords` (con armonia) o `lead` (una sola linea) o `band` (multiinstrumento: lead de pulso + armonia de pulso + bajo de triangulo + bateria de ruido) o `nes` (arpegiado, ajustado al ritmo) (predeterminado: `chords`)
 - `--transpose` - cambio de tonalidad en semitonos (predeterminado: `0`)
 - `--bits` - profundidad de bits, 1-8, mas bajo es mas crujiente (predeterminado: `8`)
 - `--rate` - frecuencia de muestreo en Hz, mas baja es mas retro (predeterminado: `22050`)
@@ -78,7 +81,7 @@ Codigos de salida: `0` exito, `1` error de conversion, `2` argumentos incorrecto
 ### Caracteristicas
 
 - Funciona con canciones **vocales** e **instrumentales** - elige la fuente de la melodia automaticamente.
-- **Transcripcion polifonica** (basic-pitch) conserva los acordes y el bajo, o los reduce a una sola linea melodica. El modo `band` los reparte en canales de chip (lead de pulso, armonia de pulso, bajo de triangulo). El bajo viene del stem de bajo y la bateria del stem de bateria.
+- **Transcripcion polifonica** (basic-pitch) conserva los acordes y el bajo, o los reduce a una sola linea melodica. El modo `band` los reparte en canales de chip (lead de pulso, armonia de pulso, bajo de triangulo). El bajo viene del stem de bajo y la bateria del stem de bateria. El modo `nes` arpegia la armonia y la ajusta al ritmo.
 - Separacion de fuentes con **Demucs**, determinista para que la misma entrada siempre de el mismo resultado.
 - Sintesis chiptune sin aliasing con dinamica de sonoridad y un limitador suave.
 - Transposicion de tonalidad y profundidad de bits, frecuencia de muestreo y tono de pulso ajustables.

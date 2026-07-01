@@ -42,6 +42,9 @@ audio8bit -i song.mp3 -V lead
 # Groupe multi-instruments : lead pulse + harmonie pulse + basse triangle + batterie de bruit
 audio8bit -i song.mp3 -V band
 
+# Style NES : le groupe avec harmonie en arpege, cale sur le rythme
+audio8bit -i song.mp3 -V nes
+
 # Prendre l'air a partir du chant ou des instruments
 audio8bit -i song.mp3 -s vocals
 audio8bit -i song.mp3 -s instrumental
@@ -64,7 +67,7 @@ audio8bit --version
 - `-f, --format` - format de sortie, p. ex. `ogg`, `wav` (par defaut : identique a l'entree)
 - `-s, --source` - source de la melodie : `vocals`, `instrumental`, `auto` (par defaut : `auto`)
 - `-m, --method` - detection des notes : `transcribe` ou `pitch` (par defaut : `transcribe`)
-- `-V, --voices` - `chords` (avec harmonie) ou `lead` (ligne unique) ou `band` (multi-instruments : lead pulse + harmonie pulse + basse triangle + batterie de bruit) (par defaut : `chords`)
+- `-V, --voices` - `chords` (avec harmonie) ou `lead` (ligne unique) ou `band` (multi-instruments : lead pulse + harmonie pulse + basse triangle + batterie de bruit) ou `nes` (arpege, cale sur le rythme) (par defaut : `chords`)
 - `--transpose` - decalage de tonalite en demi-tons (par defaut : `0`)
 - `--bits` - profondeur de bits, 1-8, plus c'est bas plus c'est granuleux (par defaut : `8`)
 - `--rate` - frequence d'echantillonnage en Hz, plus c'est bas plus c'est retro (par defaut : `22050`)
@@ -78,7 +81,7 @@ Codes de sortie : `0` succes, `1` erreur de conversion, `2` mauvais arguments.
 ### Fonctionnalites
 
 - Fonctionne avec les chansons **vocales** et les **instrumentaux** - choisit automatiquement la source de la melodie.
-- **Transcription polyphonique** (basic-pitch) qui conserve les accords et la basse, ou les reduit a une seule ligne melodique. Le mode `band` les repartit sur des canaux chip (lead pulse, harmonie pulse, basse triangle). La basse vient du stem de basse et la batterie du stem de batterie.
+- **Transcription polyphonique** (basic-pitch) qui conserve les accords et la basse, ou les reduit a une seule ligne melodique. Le mode `band` les repartit sur des canaux chip (lead pulse, harmonie pulse, basse triangle). La basse vient du stem de basse et la batterie du stem de batterie. Le mode `nes` arpege l'harmonie et la cale sur le rythme.
 - Separation des sources avec **Demucs**, deterministe : la meme entree donne toujours le meme resultat.
 - Synthese chiptune sans repliement, avec dynamique de volume et un limiteur doux.
 - Transposition de tonalite et profondeur de bits, frequence d'echantillonnage et tonalite pulsee reglables.
