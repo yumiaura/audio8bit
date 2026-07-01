@@ -72,6 +72,10 @@ audio8bit --version
 - `--bits` - Bittiefe, 1-8, niedriger ist knuspriger (Standard: `8`)
 - `--rate` - Abtastrate in Hz, niedriger ist nostalgischer (Standard: `22050`)
 - `--duty` - Tastverhaeltnis der Pulswelle, 0-1 (Standard: `0.25`)
+- `--key-snap` - band/nes: zieht tonartfremde Noten auf die erkannte Tonart: `on`, `off` (Standard: `on`)
+- `--arrange` - band/nes: Begleitung aus der Akkordfolge, Bass auf Grundtoenen und geloopte Drums statt der abgespielten Transkription: `on`, `off` (Standard: `on`)
+- `--echo` - band/nes: tempo-synchrones Echo auf der Melodie: `on`, `off` (Standard: `on`)
+- `--dither` - band/nes: TPDF-Dither vor der Bit-Quantisierung: `on`, `off` (Standard: `on`)
 - `--no-cache` - zwischengespeicherte Demucs-Stems weder lesen noch schreiben
 - `--cache-dir` - Verzeichnis für zwischengespeicherte Stems (Standard: `~/.cache/audio8bit`, oder `$AUDIO8BIT_CACHE_DIR`)
 - `--version` - Version anzeigen

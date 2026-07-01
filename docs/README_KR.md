@@ -72,6 +72,10 @@ audio8bit --version
 - `--bits` - 비트 깊이, 1-8, 낮을수록 더 거칠어집니다 (기본값: `8`)
 - `--rate` - Hz 단위의 샘플 레이트, 낮을수록 더 레트로합니다 (기본값: `22050`)
 - `--duty` - 펄스파 듀티 사이클, 0-1 (기본값: `0.25`)
+- `--key-snap` - band/nes: 조성에서 벗어난 음을 감지된 조성에 맞춥니다: `on`, `off` (기본값: `on`)
+- `--arrange` - band/nes: 전사 재생 대신 코드 진행 반주, 루트 베이스, 루프 드럼을 사용합니다: `on`, `off` (기본값: `on`)
+- `--echo` - band/nes: 멜로디에 템포 동기 에코: `on`, `off` (기본값: `on`)
+- `--dither` - band/nes: 비트 양자화 전 TPDF 디더: `on`, `off` (기본값: `on`)
 - `--no-cache` - 캐시된 Demucs 스템을 읽거나 쓰지 않음
 - `--cache-dir` - 캐시된 스템을 저장할 디렉터리 (기본값: `~/.cache/audio8bit`, 또는 `$AUDIO8BIT_CACHE_DIR`)
 - `--version` - 버전 표시

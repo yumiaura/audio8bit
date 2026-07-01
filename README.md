@@ -72,6 +72,10 @@ audio8bit --version
 - `--bits` - bit depth, 1-8, lower is crunchier (default: `8`)
 - `--rate` - sample rate in Hz, lower is more retro (default: `22050`)
 - `--duty` - pulse-wave duty cycle, 0-1 (default: `0.25`)
+- `--key-snap` - band/nes: snap off-key notes to the detected key: `on`, `off` (default: `on`)
+- `--arrange` - band/nes: chord-progression accompaniment, root bass and looped drums instead of replaying the transcription: `on`, `off` (default: `on`)
+- `--echo` - band/nes: tempo-synced echo on the melody: `on`, `off` (default: `on`)
+- `--dither` - band/nes: TPDF dither before bit quantisation: `on`, `off` (default: `on`)
 - `--no-cache` - do not read or write cached Demucs stems
 - `--cache-dir` - directory for cached stems (default: `~/.cache/audio8bit`, or `$AUDIO8BIT_CACHE_DIR`)
 - `--version` - show version

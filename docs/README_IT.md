@@ -72,6 +72,10 @@ audio8bit --version
 - `--bits` - profondita' di bit, 1-8, piu' basso e' piu' grezzo (predefinito: `8`)
 - `--rate` - frequenza di campionamento in Hz, piu' bassa e' piu' retro (predefinito: `22050`)
 - `--duty` - duty cycle dell'onda a impulsi, 0-1 (predefinito: `0.25`)
+- `--key-snap` - band/nes: aggancia le note fuori tonalita alla tonalita rilevata: `on`, `off` (predefinito: `on`)
+- `--arrange` - band/nes: accompagnamento dalla progressione di accordi, basso sulle fondamentali e batteria in loop invece di riprodurre la trascrizione: `on`, `off` (predefinito: `on`)
+- `--echo` - band/nes: eco sincronizzata al tempo sulla melodia: `on`, `off` (predefinito: `on`)
+- `--dither` - band/nes: dither TPDF prima della quantizzazione dei bit: `on`, `off` (predefinito: `on`)
 - `--no-cache` - non leggere né scrivere gli stem di Demucs nella cache
 - `--cache-dir` - directory per gli stem in cache (predefinito: `~/.cache/audio8bit`, oppure `$AUDIO8BIT_CACHE_DIR`)
 - `--version` - mostra la versione

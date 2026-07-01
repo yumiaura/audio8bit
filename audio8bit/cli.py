@@ -82,6 +82,24 @@ def build_parser():
         help=f"pulse-wave duty cycle, 0-1 (default: {DEFAULT_DUTY})",
     )
     parser.add_argument(
+        "--key-snap", choices=("on", "off"), default="on",
+        help="band/nes: snap off-key notes to the detected key (default: on)",
+    )
+    parser.add_argument(
+        "--arrange", choices=("on", "off"), default="on",
+        help="band/nes: play the detected chord progression, root bass and "
+             "looped drum pattern instead of replaying the transcription "
+             "(default: on)",
+    )
+    parser.add_argument(
+        "--echo", choices=("on", "off"), default="on",
+        help="band/nes: tempo-synced echo on the melody (default: on)",
+    )
+    parser.add_argument(
+        "--dither", choices=("on", "off"), default="on",
+        help="band/nes: TPDF dither before bit quantisation (default: on)",
+    )
+    parser.add_argument(
         "--no-cache", action="store_true",
         help="do not read or write cached Demucs stems",
     )
@@ -113,6 +131,10 @@ def main(argv=None):
             voices=args.voices,
             use_cache=not args.no_cache,
             cache_dir=args.cache_dir,
+            key_snap=args.key_snap == "on",
+            arrange=args.arrange == "on",
+            echo=args.echo == "on",
+            dither=args.dither == "on",
         )
     except ConversionError as error:
         print(f"audio8bit: {error}", file=sys.stderr)

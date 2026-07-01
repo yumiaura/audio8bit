@@ -184,7 +184,6 @@ DRUM_SNAP_SECONDS = 0.12
 # and pitches outside the detected key are snapped to the nearest scale tone.
 # Key detection is a duration-weighted pitch-class histogram correlated with the
 # Krumhansl-Schmuckler major/minor profiles.
-KEY_SNAP_ENABLED = True
 EVENT_MIN_SECONDS = 0.07
 EVENT_AMP_FLOOR = 0.25
 LEGATO_GAP_SECONDS = 0.08
@@ -1774,7 +1773,7 @@ def normalize_loudness(signal, target=TARGET_RMS):
     return (signal * gain).astype(np.float32)
 
 
-def dither(samples, bits, seed=NOISE_SEED):
+def tpdf_dither(samples, bits, seed=NOISE_SEED):
     """Seeded TPDF dither (one LSB) so bit quantisation adds hiss, not hash.
 
     Plain quantisation correlates the error with the signal, which reads as a
@@ -1917,7 +1916,8 @@ def lead_from_events(events, transpose):
 def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
             rate=DEFAULT_RATE, duty=DEFAULT_DUTY, transpose=DEFAULT_TRANSPOSE,
             source=DEFAULT_SOURCE, method=DEFAULT_METHOD, voices=DEFAULT_VOICES,
-            use_cache=True, cache_dir=None):
+            use_cache=True, cache_dir=None,
+            key_snap=True, arrange=True, echo=True, dither=True):
     """Convert a song into a chiptune arrangement and write it to disk.
 
     ``source`` chooses the stem (``vocals``/``instrumental``/``auto``).
@@ -1925,6 +1925,9 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
     ``voices`` (transcribe only) chooses ``chords`` (every note, harmony kept)
     or ``lead`` (a single melody line).
     ``use_cache``/``cache_dir`` control on-disk caching of the Demucs stems.
+    ``key_snap``/``arrange``/``echo``/``dither`` switch the band/nes musicality
+    features: snapping off-key notes to the detected scale, the chord-based
+    arranger, the melodic echo, and the TPDF dither.
 
     Returns (destination_path, quality_ok, quality_report_lines).
     """
@@ -1967,7 +1970,7 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         key_scale = None
         key_tonic = None
         key_degrees = None
-        if KEY_SNAP_ENABLED:
+        if key_snap:
             key_name, key_scale, key_tonic, key_degrees = detect_key(events)
             if key_scale:
                 events, moved = snap_to_key(events, key_scale)
@@ -1982,21 +1985,23 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         # falls back to the transcription-replay path.
         chords = []
         bass_notes = []
-        echo_delay = int(ECHO_FALLBACK_SECONDS * rate)
+        echo_delay = int(ECHO_FALLBACK_SECONDS * rate) if echo else 0
         try:
             mix = decode_mix(origin, DEFAULT_RATE)
             tempo, beat_times = track_beats(mix, DEFAULT_RATE)
-            echo_delay = int(0.5 * 60.0 / tempo * rate)
+            if echo:
+                echo_delay = int(0.5 * 60.0 / tempo * rate)
             span = max(end for start, end, pitch, amplitude in events)
             grid, beats = build_grid(beat_times, tempo, span, subdivisions=4)
-            if key_tonic is not None:
+            if arrange and key_tonic is not None:
                 triads = diatonic_triads(key_tonic, key_degrees)
                 chords = detect_chords(events, beats, triads)
                 bass_notes = bass_from_chords(chords, beats, tight=nes)
             if nes:
                 if lead_notes:
                     lead_notes = quantize_notes(lead_notes, tempo, beat_times)
-                drum_hits = drum_pattern(drum_hits, beats)
+                if arrange:
+                    drum_hits = drum_pattern(drum_hits, beats)
                 drum_hits = snap_drums(drum_hits, grid)
                 drum_hits = accent_drums(drum_hits, beats)
         except Exception:
@@ -2011,7 +2016,9 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
                             drum_hits=drum_hits, arp=nes, vibrato=nes,
                             chords=chords, echo_delay=echo_delay)
         voice = normalize_loudness(voice)
-        samples_u8 = to_uint8(quantize(dither(voice, bits), bits))
+        if dither:
+            voice = tpdf_dither(voice, bits)
+        samples_u8 = to_uint8(quantize(voice, bits))
         write_output(destination, samples_u8, rate, 1)
         quality_ok, report = validate_audio(samples_u8, rate, len(events))
         info.append(f"voices: {voices}")

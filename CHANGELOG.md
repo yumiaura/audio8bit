@@ -30,6 +30,8 @@ All notable changes to this project are documented here. The format follows
   - Production: a tempo-synced echo on the melodic bus (rhythm stays dry),
     beat accents on the `nes` lead/drums, loudness normalisation to a fixed
     RMS, and seeded TPDF dither before the bit quantiser.
+  - All four are switchable: `--key-snap`, `--arrange`, `--echo` and
+    `--dither` take `on`/`off` (default `on`).
 
 ## 0.0.2 - 2026-06-30
 
