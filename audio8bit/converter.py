@@ -115,6 +115,18 @@ DEFAULT_BITS = 8
 DEFAULT_DUTY = 0.25
 DEFAULT_TRANSPOSE = 0
 
+# --auto planner. The arrangement family is chosen by rules on cheap content
+# features (never by comparing the two validators, which are not on one scale):
+# an essentially monophonic transcription becomes a single lead line, otherwise
+# the percussion density decides chords (no usable drums) vs a drum-backed band,
+# and a dense steady beat upgrades band to the beat-quantised nes. Only the duty
+# cycle is picked by a scored micro-search (it changes timbre and aliasing but
+# not the arrangement), 0.25 first so it wins score ties and output stays stable.
+DUTY_CANDIDATES = (0.25, 0.125, 0.5)
+POLYPHONY_LEAD_MAX = 1.3
+DRUM_PRESENCE_MIN = 1.0
+DRUM_DENSE_MIN = 2.5
+
 PITCH_TOLERANCE = 0.6
 DRIFT_FRAMES = 3
 BRIDGE_SECONDS = 0.12
@@ -1913,69 +1925,119 @@ def lead_from_events(events, transpose):
     return notes
 
 
-def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
-            rate=DEFAULT_RATE, duty=DEFAULT_DUTY, transpose=DEFAULT_TRANSPOSE,
-            source=DEFAULT_SOURCE, method=DEFAULT_METHOD, voices=DEFAULT_VOICES,
-            use_cache=True, cache_dir=None,
-            key_snap=True, arrange=True, echo=True, dither=True):
-    """Convert a song into a chiptune arrangement and write it to disk.
+def pick(value, default):
+    """Return ``value`` unless it is None (the 'let auto/default decide' sentinel)."""
+    return default if value is None else value
 
-    ``source`` chooses the stem (``vocals``/``instrumental``/``auto``).
-    ``method`` chooses how notes are found (``transcribe``/``pitch``).
-    ``voices`` (transcribe only) chooses ``chords`` (every note, harmony kept)
-    or ``lead`` (a single melody line).
-    ``use_cache``/``cache_dir`` control on-disk caching of the Demucs stems.
-    ``key_snap``/``arrange``/``echo``/``dither`` switch the band/nes musicality
-    features: snapping off-key notes to the detected scale, the chord-based
-    arranger, the melodic echo, and the TPDF dither.
 
-    Returns (destination_path, quality_ok, quality_report_lines).
+def estimate_polyphony(events):
+    """Mean number of notes sounding at once, time-weighted.
+
+    A single melodic line never overlaps itself, so this stays at or below ~1;
+    chord-heavy material stacks several notes per instant and climbs above it.
     """
-    origin = Path(input_path)
-    if not origin.is_file():
-        raise ConversionError(f"Input file not found: '{input_path}'")
-    if not 1 <= bits <= 8:
-        raise ConversionError(f"--bits must be between 1 and 8, got {bits}")
-    if rate < 1000:
-        raise ConversionError(f"--rate must be at least 1000 Hz, got {rate}")
-    if not 0.0 < duty < 1.0:
-        raise ConversionError(f"--duty must be between 0 and 1, got {duty}")
-    if not -24 <= transpose <= 24:
-        raise ConversionError(
-            f"--transpose must be between -24 and 24 semitones, got {transpose}"
-        )
-    if source not in SOURCE_CHOICES:
-        raise ConversionError(
-            f"--source must be one of {', '.join(SOURCE_CHOICES)}, got '{source}'"
-        )
-    if method not in METHOD_CHOICES:
-        raise ConversionError(
-            f"--method must be one of {', '.join(METHOD_CHOICES)}, got '{method}'"
-        )
-    if voices not in VOICES_CHOICES:
-        raise ConversionError(
-            f"--voices must be one of {', '.join(VOICES_CHOICES)}, got '{voices}'"
-        )
+    if not events:
+        return 0.0
+    starts = [start for start, end, pitch, amplitude in events]
+    ends = [end for start, end, pitch, amplitude in events]
+    span = max(ends) - min(starts)
+    if span <= 0:
+        return 0.0
+    sounding = sum(end - start for start, end, pitch, amplitude in events)
+    return sounding / span
 
-    destination = resolve_output_path(origin, output_path, format)
 
-    stems, sample_rate = separate_sources(origin, use_cache=use_cache, cache_dir=cache_dir)
-    signal, fmin, fmax, picked = select_melody(stems, source)
-    info = [f"melody source: {picked}", f"method: {method}"]
+def drum_density(drums_signal, sample_rate):
+    """Detected drum onsets per second in the drums stem (0 when there are none)."""
+    hits = detect_drums(drums_signal, sample_rate)
+    if not hits:
+        return 0.0
+    times = [time for time, kind, velocity in hits]
+    span = max(times) - min(times)
+    if span <= 0:
+        return 0.0
+    return len(hits) / span
 
+
+def choose_voices(events, drums_signal, sample_rate):
+    """Pick the arrangement family from note polyphony and percussion density.
+
+    Returns ``(voices, reason)``. See the DUTY_CANDIDATES block for the rules.
+    """
+    polyphony = estimate_polyphony(events)
+    if polyphony < POLYPHONY_LEAD_MAX:
+        return VOICES_LEAD, f"voices=lead (polyphony {polyphony:.1f} < {POLYPHONY_LEAD_MAX})"
+    density = drum_density(drums_signal, sample_rate)
+    if density < DRUM_PRESENCE_MIN:
+        return VOICES_CHORDS, (
+            f"voices=chords (polyphony {polyphony:.1f}, drums {density:.1f}/s "
+            f"< {DRUM_PRESENCE_MIN})"
+        )
+    if density >= DRUM_DENSE_MIN:
+        return VOICES_NES, (
+            f"voices=nes (polyphony {polyphony:.1f}, steady drums {density:.1f}/s)"
+        )
+    return VOICES_BAND, f"voices=band (polyphony {polyphony:.1f}, drums {density:.1f}/s)"
+
+
+def choose_transpose(events, voices):
+    """Uniform octave shift centring the median note on the ringtone register.
+
+    Multiples of 12 only, so pitch classes (the key and, for chords, the whole
+    harmony) survive. ``lead`` needs none: its register is set downstream by
+    normalize_register. Returns ``(transpose, reason)``.
+    """
+    if voices == VOICES_LEAD or not events:
+        return 0, "transpose=0 (register set by the lead normaliser)"
+    median = float(np.median([pitch for start, end, pitch, amplitude in events]))
+    shift = int(round((REGISTER_CENTER_MIDI - median) / 12.0) * 12)
+    shift = max(-24, min(24, shift))
+    if shift == 0:
+        return 0, f"transpose=0 (median MIDI {median:.0f} already centred)"
+    return shift, f"transpose={shift:+d} (median MIDI {median:.0f} -> ~{REGISTER_CENTER_MIDI})"
+
+
+def score_render(samples_u8, sample_rate, quality_ok):
+    """Penalty for one rendered candidate; lower is better.
+
+    Guardrail-based and self-consistent within a family: reject a broken render,
+    then prefer the least aliasing and clipping. Used only to pick among
+    otherwise-comparable knob settings (the duty cycle), never across families.
+    """
+    penalty = 0.0 if quality_ok else 1000.0
+    penalty += alias_share(samples_u8, sample_rate) * 100.0
+    clip_share = float(((samples_u8 == 0) | (samples_u8 == 255)).mean())
+    penalty += clip_share * 100.0
+    loudness = float(np.std(samples_u8.astype(np.float64)))
+    if loudness < 1.0:
+        penalty += 100.0
+    return penalty
+
+
+def render_events(stems, signal, events, sample_rate, rate, origin,
+                  fmin, fmax, picked, voices, method, duty, transpose,
+                  bits, key_snap, arrange, echo, dither):
+    """Render already-separated stems/transcription into 8-bit samples.
+
+    Returns ``(samples_u8, quality_ok, report_lines)`` and never touches disk, so
+    the --auto planner can render several candidate configs cheaply and keep only
+    the best. ``events`` is the shared basic-pitch transcription (None for the
+    pitch method, which tracks ``signal`` directly). ``report_lines`` carry the
+    voices/key/detail lines and the validator output, but not the source/method
+    header (convert() adds that).
+    """
     if method == METHOD_TRANSCRIBE and voices in (VOICES_BAND, VOICES_NES):
-        events = transcribe_events(signal, sample_rate, picked)
-        events = clean_events(events)
+        band_events = clean_events(events)
         key_line = None
         key_scale = None
         key_tonic = None
         key_degrees = None
         if key_snap:
-            key_name, key_scale, key_tonic, key_degrees = detect_key(events)
+            key_name, key_scale, key_tonic, key_degrees = detect_key(band_events)
             if key_scale:
-                events, moved = snap_to_key(events, key_scale)
+                band_events, moved = snap_to_key(band_events, key_scale)
                 key_line = f"key: {key_name} ({moved} notes snapped)"
-        lead_notes = melody_line(events)
+        lead_notes = melody_line(band_events)
         drum_hits = detect_drums(stems.get("drums"), sample_rate)
         nes = voices == VOICES_NES
 
@@ -1991,11 +2053,11 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
             tempo, beat_times = track_beats(mix, DEFAULT_RATE)
             if echo:
                 echo_delay = int(0.5 * 60.0 / tempo * rate)
-            span = max(end for start, end, pitch, amplitude in events)
+            span = max(end for start, end, pitch, amplitude in band_events)
             grid, beats = build_grid(beat_times, tempo, span, subdivisions=4)
             if arrange and key_tonic is not None:
                 triads = diatonic_triads(key_tonic, key_degrees)
-                chords = detect_chords(events, beats, triads)
+                chords = detect_chords(band_events, beats, triads)
                 bass_notes = bass_from_chords(chords, beats, tight=nes)
             if nes:
                 if lead_notes:
@@ -2011,7 +2073,7 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
             if key_scale:
                 bass_notes = snap_notes_to_key(bass_notes, key_scale)
 
-        voice = render_band(events, rate, duty, transpose,
+        voice = render_band(band_events, rate, duty, transpose,
                             lead_notes=lead_notes, bass_notes=bass_notes,
                             drum_hits=drum_hits, arp=nes, vibrato=nes,
                             chords=chords, echo_delay=echo_delay)
@@ -2019,40 +2081,174 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
         if dither:
             voice = tpdf_dither(voice, bits)
         samples_u8 = to_uint8(quantize(voice, bits))
-        write_output(destination, samples_u8, rate, 1)
-        quality_ok, report = validate_audio(samples_u8, rate, len(events))
-        info.append(f"voices: {voices}")
+        quality_ok, report = validate_audio(samples_u8, rate, len(band_events))
+        lines = [f"voices: {voices}"]
         if key_line:
-            info.append(key_line)
+            lines.append(key_line)
         detail = f"bass: {len(bass_notes)} notes, drums: {len(drum_hits)} hits"
         if chords:
             detail += f", chords: {len(chords)} segments"
         if nes:
             detail += ", arpeggio, beat-quantised"
-        info.append(detail)
-        return destination, quality_ok, info + report
+        lines.append(detail)
+        return samples_u8, quality_ok, lines + report
 
     if method == METHOD_TRANSCRIBE and voices == VOICES_CHORDS:
-        events = transcribe_events(signal, sample_rate, picked)
         voice = render_chords(events, rate, duty, transpose)
         samples_u8 = to_uint8(quantize(voice, bits))
-        write_output(destination, samples_u8, rate, 1)
         quality_ok, report = validate_audio(samples_u8, rate, len(events))
-        info.append("voices: chords")
-        return destination, quality_ok, info + report
+        return samples_u8, quality_ok, ["voices: chords"] + report
 
     if method == METHOD_TRANSCRIBE:
-        events = transcribe_events(signal, sample_rate, picked)
         notes = lead_from_events(events, transpose)
         voice = render_melody(notes, rate, duty)
-        info.append("voices: lead")
+        lines = ["voices: lead"]
     else:
         notes, tempo = extract_by_pitch(
             signal, sample_rate, fmin, fmax, picked, transpose, origin,
         )
         voice = render_song(notes, rate, duty, tempo)
+        lines = []
 
     samples_u8 = to_uint8(quantize(voice, bits))
-    write_output(destination, samples_u8, rate, 1)
     quality_ok, report = validate_melody(notes, samples_u8, rate)
+    return samples_u8, quality_ok, lines + report
+
+
+def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
+            rate=DEFAULT_RATE, duty=None, transpose=None,
+            source=None, method=None, voices=None,
+            use_cache=True, cache_dir=None,
+            key_snap=None, arrange=None, echo=None, dither=None,
+            auto=False):
+    """Convert a song into a chiptune arrangement and write it to disk.
+
+    ``source`` chooses the stem (``vocals``/``instrumental``/``auto``).
+    ``method`` chooses how notes are found (``transcribe``/``pitch``).
+    ``voices`` (transcribe only) chooses ``chords`` (every note, harmony kept),
+    ``lead`` (a single melody line), or ``band``/``nes`` (a full chip band).
+    ``use_cache``/``cache_dir`` control on-disk caching of the Demucs stems.
+    ``key_snap``/``arrange``/``echo``/``dither`` switch the band/nes musicality
+    features: snapping off-key notes to the detected scale, the chord-based
+    arranger, the melodic echo, and the TPDF dither.
+
+    The arrangement settings (``source``/``method``/``voices``/``transpose``/
+    ``duty``/``key_snap``/``arrange``/``echo``/``dither``) accept ``None`` as a
+    "not set" sentinel. With ``auto=True`` the planner fills every unset one from
+    the song's own features (and a scored duty micro-search); an explicit value
+    always wins. With ``auto=False`` an unset value falls back to its default.
+
+    Returns (destination_path, quality_ok, quality_report_lines).
+    """
+    origin = Path(input_path)
+    if not origin.is_file():
+        raise ConversionError(f"Input file not found: '{input_path}'")
+
+    if not auto:
+        source = pick(source, DEFAULT_SOURCE)
+        method = pick(method, DEFAULT_METHOD)
+        voices = pick(voices, DEFAULT_VOICES)
+        transpose = pick(transpose, DEFAULT_TRANSPOSE)
+        duty = pick(duty, DEFAULT_DUTY)
+        key_snap = pick(key_snap, True)
+        arrange = pick(arrange, True)
+        echo = pick(echo, True)
+        dither = pick(dither, True)
+
+    if not 1 <= bits <= 8:
+        raise ConversionError(f"--bits must be between 1 and 8, got {bits}")
+    if rate < 1000:
+        raise ConversionError(f"--rate must be at least 1000 Hz, got {rate}")
+    if duty is not None and not 0.0 < duty < 1.0:
+        raise ConversionError(f"--duty must be between 0 and 1, got {duty}")
+    if transpose is not None and not -24 <= transpose <= 24:
+        raise ConversionError(
+            f"--transpose must be between -24 and 24 semitones, got {transpose}"
+        )
+    if source is not None and source not in SOURCE_CHOICES:
+        raise ConversionError(
+            f"--source must be one of {', '.join(SOURCE_CHOICES)}, got '{source}'"
+        )
+    if method is not None and method not in METHOD_CHOICES:
+        raise ConversionError(
+            f"--method must be one of {', '.join(METHOD_CHOICES)}, got '{method}'"
+        )
+    if voices is not None and voices not in VOICES_CHOICES:
+        raise ConversionError(
+            f"--voices must be one of {', '.join(VOICES_CHOICES)}, got '{voices}'"
+        )
+
+    destination = resolve_output_path(origin, output_path, format)
+    stems, sample_rate = separate_sources(origin, use_cache=use_cache, cache_dir=cache_dir)
+
+    reasons = []
+    if auto:
+        # Source reuses the existing vocal-presence auto (a clean physical signal);
+        # method stays on the polyphonic transcriber, since monophonic material is
+        # served by voices=lead and never needs the lighter pitch path.
+        if source is None:
+            source = SOURCE_AUTO
+        if method is None:
+            method = METHOD_TRANSCRIBE
+            reasons.append(
+                "method=transcribe (polyphonic model; --method pitch forces the light path)"
+            )
+
+    signal, fmin, fmax, picked = select_melody(stems, source)
+    if auto and source == SOURCE_AUTO:
+        reasons.insert(0, f"source={picked}")
+
+    events = None
+    if method == METHOD_TRANSCRIBE:
+        events = transcribe_events(signal, sample_rate, picked)
+
+    info = [f"melody source: {picked}", f"method: {method}"]
+
+    if auto:
+        # voices is a transcribe-only choice; the pitch method is monophonic and
+        # ignores it, so only plan the family (and its register) when transcribing.
+        if method == METHOD_TRANSCRIBE:
+            if voices is None:
+                voices, reason = choose_voices(events, stems.get("drums"), sample_rate)
+                reasons.append(reason)
+            if transpose is None:
+                transpose, reason = choose_transpose(events, voices)
+                reasons.append(reason)
+        voices = pick(voices, DEFAULT_VOICES)
+        if transpose is None:
+            transpose, reason = choose_transpose(events, voices)
+            reasons.append(reason)
+        key_snap = pick(key_snap, True)
+        arrange = pick(arrange, True)
+        echo = pick(echo, True)
+        dither = pick(dither, True)
+
+        # Scored micro-search over the duty cycle only (it does not change the
+        # arrangement): render each candidate off the shared stems/transcription
+        # and keep the least-aliased, non-clipping one. An explicit --duty pins it.
+        duty_candidates = (duty,) if duty is not None else DUTY_CANDIDATES
+        best = None
+        for candidate in duty_candidates:
+            samples_u8, quality_ok, report = render_events(
+                stems, signal, events, sample_rate, rate, origin,
+                fmin, fmax, picked, voices, method, candidate, transpose,
+                bits, key_snap, arrange, echo, dither,
+            )
+            penalty = score_render(samples_u8, rate, quality_ok)
+            if best is None or penalty < best[0]:
+                best = (penalty, candidate, samples_u8, quality_ok, report)
+        penalty, duty, samples_u8, quality_ok, report = best
+        if len(duty_candidates) > 1:
+            reasons.append(f"duty={duty} (least aliasing/clipping of {list(DUTY_CANDIDATES)})")
+
+        write_output(destination, samples_u8, rate, 1)
+        auto_lines = ["auto: " + reasons[0]] + ["      " + line for line in reasons[1:]]
+        return destination, quality_ok, info + auto_lines + report
+
+    samples_u8, quality_ok, report = render_events(
+        stems, signal, events, sample_rate, rate, origin,
+        fmin, fmax, picked, voices, method, duty, transpose,
+        bits, key_snap, arrange, echo, dither,
+    )
+    write_output(destination, samples_u8, rate, 1)
     return destination, quality_ok, info + report
