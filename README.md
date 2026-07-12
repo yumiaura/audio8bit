@@ -36,6 +36,12 @@ pip install git+https://github.com/yumiaura/audio8bit.git
 # Convert a song (auto-detects vocal or instrumental)
 audio8bit -i song.mp3
 
+# Let audio8bit pick every setting for this song (prints what it chose)
+audio8bit -i song.mp3 --auto
+
+# Auto, but force one setting - your flag wins, the rest stays automatic
+audio8bit -i song.mp3 --auto -V lead
+
 # Just the main melody, no chords
 audio8bit -i song.mp3 -V lead
 
@@ -65,6 +71,7 @@ audio8bit --version
 - `-i, --input` - input audio file, required (any format ffmpeg can read)
 - `-o, --output` - output path (default: `output.<ext>`)
 - `-f, --format` - output format, e.g. `ogg`, `wav` (default: same as input)
+- `--auto` - pick `source`, `method`, `voices`, `transpose` and `duty` automatically from the song (any flag you also set explicitly wins; the chosen settings are printed)
 - `-s, --source` - melody source: `vocals`, `instrumental`, `auto` (default: `auto`)
 - `-m, --method` - note finding: `transcribe` or `pitch` (default: `transcribe`)
 - `-V, --voices` - `chords` (one voice, with harmony), `lead` (single line), `band` (full chip band: pulse lead + pulse harmony + triangle bass from the bass stem + noise drums from the drums stem), or `nes` (the same band with an arpeggiated harmony, vibrato lead and everything snapped to the beat) (default: `chords`)
