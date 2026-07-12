@@ -36,6 +36,12 @@ pip install git+https://github.com/yumiaura/audio8bit.git
 # Converte uma musica (detecta automaticamente vocal ou instrumental)
 audio8bit -i song.mp3
 
+# Deixa o audio8bit escolher todos os ajustes para esta musica (mostra o que escolheu)
+audio8bit -i song.mp3 --auto
+
+# Automatico, mas forcando um ajuste - a sua opcao vence, o resto continua automatico
+audio8bit -i song.mp3 --auto -V lead
+
 # Apenas a melodia principal, sem acordes
 audio8bit -i song.mp3 -V lead
 
@@ -65,6 +71,7 @@ audio8bit --version
 - `-i, --input` - arquivo de audio de entrada, obrigatorio (qualquer formato que o ffmpeg consiga ler)
 - `-o, --output` - caminho de saida (padrao: `output.<ext>`)
 - `-f, --format` - formato de saida, por exemplo `ogg`, `wav` (padrao: o mesmo da entrada)
+- `--auto` - escolhe `source`, `method`, `voices`, `transpose` e `duty` automaticamente a partir da musica (qualquer opcao que voce tambem definir explicitamente vence; os ajustes escolhidos sao impressos)
 - `-s, --source` - fonte da melodia: `vocals`, `instrumental`, `auto` (padrao: `auto`)
 - `-m, --method` - deteccao de notas: `transcribe` ou `pitch` (padrao: `transcribe`)
 - `-V, --voices` - `chords` (com harmonia) ou `lead` (linha unica) ou `band` (multi-instrumento: lead de pulso + harmonia de pulso + baixo de triangulo + bateria de ruido) ou `nes` (arpejado, no ritmo) (padrao: `chords`)

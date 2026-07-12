@@ -36,6 +36,12 @@ pip install git+https://github.com/yumiaura/audio8bit.git
 # 曲を変換する(ボーカルか楽器かを自動検出)
 audio8bit -i song.mp3
 
+# audio8bitにこの曲のすべての設定を自動で選ばせる(選んだ内容を表示する)
+audio8bit -i song.mp3 --auto
+
+# 自動だが一つだけ設定を強制する - 指定したフラグが優先され、残りは自動のまま
+audio8bit -i song.mp3 --auto -V lead
+
 # メインメロディだけ、コードなし
 audio8bit -i song.mp3 -V lead
 
@@ -65,6 +71,7 @@ audio8bit --version
 - `-i, --input` - 入力オーディオファイル、必須(ffmpeg が読み込めるあらゆる形式)
 - `-o, --output` - 出力先パス(デフォルト: `output.<ext>`)
 - `-f, --format` - 出力形式、例: `ogg`, `wav`(デフォルト: 入力と同じ)
+- `--auto` - 曲から `source`, `method`, `voices`, `transpose`, `duty` を自動で選ぶ(明示的に指定したフラグがあればそちらが優先され、選ばれた設定が表示される)
 - `-s, --source` - メロディの取得元: `vocals`, `instrumental`, `auto`(デフォルト: `auto`)
 - `-m, --method` - 音符の検出方法: `transcribe` または `pitch`(デフォルト: `transcribe`)
 - `-V, --voices` - `chords`(ハーモニーあり)または `lead`(単旋律) または `band`(マルチ楽器: パルス・リード + パルス・ハーモニー + 三角波ベース + ノイズ・ドラム) または `nes` (アルペジオ、ビートに整列)(デフォルト: `chords`)

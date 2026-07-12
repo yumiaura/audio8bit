@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- New `--auto` flag: pick the arrangement settings for a song automatically
+  instead of guessing them by hand. It chooses the melody source, the note
+  method, the voices (`chords`/`lead`/`band`/`nes`), a register transpose and the
+  pulse duty from the song's own features, and prints what it chose. Any flag you
+  also set explicitly still wins. The family is decided by rules on cheap content
+  features (note polyphony and drum density), the register by centring the median
+  note, and only the duty by a small scored micro-search that re-renders off one
+  shared Demucs separation and transcription, so output stays deterministic.
+  Branches `feat/auto-engine` (engine) and `feat/auto-cli` (flag and docs).
+
 ## 0.0.3 - 2026-07-02
 
 ### Added

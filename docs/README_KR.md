@@ -36,6 +36,12 @@ pip install git+https://github.com/yumiaura/audio8bit.git
 # 곡 변환 (보컬 또는 연주곡을 자동 감지)
 audio8bit -i song.mp3
 
+# audio8bit가 이 곡에 맞는 모든 설정을 스스로 고르게 함 (선택한 내용을 출력)
+audio8bit -i song.mp3 --auto
+
+# 자동이지만 한 가지 설정은 강제로 지정 - 지정한 플래그가 우선하고 나머지는 자동으로 유지됨
+audio8bit -i song.mp3 --auto -V lead
+
 # 메인 멜로디만, 코드 없이
 audio8bit -i song.mp3 -V lead
 
@@ -65,6 +71,7 @@ audio8bit --version
 - `-i, --input` - 입력 오디오 파일, 필수 (ffmpeg가 읽을 수 있는 모든 형식)
 - `-o, --output` - 출력 경로 (기본값: `output.<ext>`)
 - `-f, --format` - 출력 형식, 예: `ogg`, `wav` (기본값: 입력과 동일)
+- `--auto` - 곡에 맞춰 `source`, `method`, `voices`, `transpose`, `duty`를 자동으로 선택함 (직접 명시적으로 설정한 플래그가 있으면 그것이 우선하며, 선택된 설정이 출력됨)
 - `-s, --source` - 멜로디 소스: `vocals`, `instrumental`, `auto` (기본값: `auto`)
 - `-m, --method` - 음 찾기: `transcribe` 또는 `pitch` (기본값: `transcribe`)
 - `-V, --voices` - `chords` (화음 포함) 또는 `lead` (단일 라인) 또는 `band` (멀티 악기: 펄스 리드 + 펄스 하모니 + 삼각파 베이스 + 노이즈 드럼) 또는 `nes` (아르페지오, 박자에 맞춤) (기본값: `chords`)

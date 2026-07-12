@@ -43,31 +43,37 @@ def build_parser():
              "(default: keep the input's format)",
     )
     parser.add_argument(
-        "-s", "--source", choices=SOURCE_CHOICES, default=DEFAULT_SOURCE,
+        "--auto", action="store_true",
+        help="pick source, method, voices, transpose and duty automatically from "
+             "the song's own features (any flag you set explicitly still wins)",
+    )
+    parser.add_argument(
+        "-s", "--source", choices=SOURCE_CHOICES, default=None,
         help="which melody to follow: 'vocals' (the sung line), "
              "'instrumental' (the backing lead, drums and bass removed), or "
-             f"'auto' (default: {DEFAULT_SOURCE})",
+             f"'auto' (default: {DEFAULT_SOURCE}; chosen by --auto if unset)",
     )
     parser.add_argument(
-        "-m", "--method", choices=METHOD_CHOICES, default=DEFAULT_METHOD,
+        "-m", "--method", choices=METHOD_CHOICES, default=None,
         help="how to find the notes: 'transcribe' (polyphonic note model; best "
              "for chords/instrumentals) or 'pitch' (lighter pYIN tracker snapped "
-             f"to the beat) (default: {DEFAULT_METHOD})",
+             f"to the beat) (default: {DEFAULT_METHOD}; chosen by --auto if unset)",
     )
     parser.add_argument(
-        "-V", "--voices", choices=VOICES_CHOICES, default=DEFAULT_VOICES,
+        "-V", "--voices", choices=VOICES_CHOICES, default=None,
         help="with --method transcribe: 'chords' plays every note in one pulse "
              "voice (harmony and bass kept), 'lead' plays a single melody line, "
              "'band' arranges it as a full chip band (pulse lead, a stacked pulse "
              "harmony, a triangle bass from the bass stem and noise drums from "
              "the drums stem), or 'nes' plays the same band but with the harmony "
              "as a fast arpeggio and the notes and drums snapped to the beat "
-             f"(default: {DEFAULT_VOICES})",
+             f"(default: {DEFAULT_VOICES}; chosen by --auto if unset)",
     )
     parser.add_argument(
-        "--transpose", type=int, default=DEFAULT_TRANSPOSE,
+        "--transpose", type=int, default=None,
         help="shift the melody into another key by this many semitones, "
-             f"negative allowed (default: +{DEFAULT_TRANSPOSE})",
+             f"negative allowed (default: {DEFAULT_TRANSPOSE}; chosen by --auto "
+             "if unset)",
     )
     parser.add_argument(
         "--bits", type=int, default=DEFAULT_BITS,
@@ -78,25 +84,26 @@ def build_parser():
         help=f"output sample rate in Hz (default: {DEFAULT_RATE})",
     )
     parser.add_argument(
-        "--duty", type=float, default=DEFAULT_DUTY,
-        help=f"pulse-wave duty cycle, 0-1 (default: {DEFAULT_DUTY})",
+        "--duty", type=float, default=None,
+        help=f"pulse-wave duty cycle, 0-1 (default: {DEFAULT_DUTY}; chosen by "
+             "--auto if unset)",
     )
     parser.add_argument(
-        "--key-snap", choices=("on", "off"), default="on",
+        "--key-snap", choices=("on", "off"), default=None,
         help="band/nes: snap off-key notes to the detected key (default: on)",
     )
     parser.add_argument(
-        "--arrange", choices=("on", "off"), default="on",
+        "--arrange", choices=("on", "off"), default=None,
         help="band/nes: play the detected chord progression, root bass and "
              "looped drum pattern instead of replaying the transcription "
              "(default: on)",
     )
     parser.add_argument(
-        "--echo", choices=("on", "off"), default="on",
+        "--echo", choices=("on", "off"), default=None,
         help="band/nes: tempo-synced echo on the melody (default: on)",
     )
     parser.add_argument(
-        "--dither", choices=("on", "off"), default="on",
+        "--dither", choices=("on", "off"), default=None,
         help="band/nes: TPDF dither before bit quantisation (default: on)",
     )
     parser.add_argument(
@@ -112,6 +119,11 @@ def build_parser():
         "--version", action="version", version=f"audio8bit {version}",
     )
     return parser
+
+
+def switch(value):
+    """Turn a --key-snap/--arrange/--echo/--dither choice into a bool, or None."""
+    return None if value is None else value == "on"
 
 
 def main(argv=None):
@@ -131,10 +143,11 @@ def main(argv=None):
             voices=args.voices,
             use_cache=not args.no_cache,
             cache_dir=args.cache_dir,
-            key_snap=args.key_snap == "on",
-            arrange=args.arrange == "on",
-            echo=args.echo == "on",
-            dither=args.dither == "on",
+            key_snap=switch(args.key_snap),
+            arrange=switch(args.arrange),
+            echo=switch(args.echo),
+            dither=switch(args.dither),
+            auto=args.auto,
         )
     except ConversionError as error:
         print(f"audio8bit: {error}", file=sys.stderr)

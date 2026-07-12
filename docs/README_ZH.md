@@ -36,6 +36,12 @@ pip install git+https://github.com/yumiaura/audio8bit.git
 # Convert a song (auto-detects vocal or instrumental)
 audio8bit -i song.mp3
 
+# 让 audio8bit 为这首歌自动选择所有设置（并打印它选择的内容）
+audio8bit -i song.mp3 --auto
+
+# 自动模式，但强制指定一个设置 - 你的参数优先，其余保持自动
+audio8bit -i song.mp3 --auto -V lead
+
 # Just the main melody, no chords
 audio8bit -i song.mp3 -V lead
 
@@ -65,6 +71,7 @@ audio8bit --version
 - `-i, --input` - 输入音频文件，必填（ffmpeg 能读取的任意格式）
 - `-o, --output` - 输出路径（默认：`output.<ext>`）
 - `-f, --format` - 输出格式，例如 `ogg`、`wav`（默认：与输入相同）
+- `--auto` - 根据歌曲自动选择 `source`、`method`、`voices`、`transpose` 和 `duty`（你显式设置的任何参数都优先；所选设置会被打印出来）
 - `-s, --source` - 旋律来源：`vocals`、`instrumental`、`auto`（默认：`auto`）
 - `-m, --method` - 音符识别：`transcribe` 或 `pitch`（默认：`transcribe`）
 - `-V, --voices` - `chords`（带和声）或 `lead`（单声部） 或 `band`（多乐器：脉冲主音 + 脉冲和声 + 三角波贝斯 + 噪声鼓） 或 `nes`（琶音、对齐节拍）（默认：`chords`）
