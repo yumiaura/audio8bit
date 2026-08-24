@@ -30,6 +30,19 @@ pip install git+https://github.com/yumiaura/audio8bit.git
 > **First run is slow:** it downloads a small AI model (about 80 MB) and can take
 > a few minutes. That is normal; later runs are faster.
 
+## Features
+🎵 Convert songs into 8-bit chiptune music
+🎤 Automatically detect vocals or instrumental sources
+🎹 Extract the main melody and chords
+🕹️ Generate different chiptune styles
+🥁 Add bass, harmony, and retro noise drums
+🎼 Supports melody transcription and pitch detection
+🔑 Automatic key detection and key snapping
+🎚️ Adjustable bit depth and sample rate
+⚡ Cached audio stems for faster repeated runs
+💻 Fully command-line based
+🔒 Runs locally — your audio does not need to be uploaded
+
 ### Usage
 
 ```bash
