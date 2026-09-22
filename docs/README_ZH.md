@@ -72,7 +72,7 @@ audio8bit --version
 - `--bits` - 位深度，1-8，越低越粗糙（默认：`8`）
 - `--rate` - 采样率（Hz），越低越复古（默认：`22050`）
 - `--duty` - 脉冲波占空比，0-1（默认：`0.25`）
-- `--key-snap` - band/nes：把跑调音符对齐到检测出的调性：`on`、`off`（默认：`on`）
+- `--key-snap` - band/nes：把跑调音符对齐到检测出的调性：`on`、`off`（默认：`on`）。无论是否对齐，调性都会被检测并显示在报告中，因为 `--arrange` 用它来构建和弦。
 - `--arrange` - band/nes：以和弦进行伴奏、根音贝斯和循环鼓点取代转录回放：`on`、`off`（默认：`on`）
 - `--echo` - band/nes：旋律上的节拍同步回声：`on`、`off`（默认：`on`）
 - `--dither` - band/nes：位量化前的 TPDF 抖动：`on`、`off`（默认：`on`）

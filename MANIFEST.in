@@ -1,0 +1,2 @@
+# The test suite runs from a checkout; it is not shipped in the sdist.
+prune tests

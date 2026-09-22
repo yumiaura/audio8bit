@@ -722,6 +722,28 @@ def snap_notes_to_key(notes, scale_pcs):
     return out
 
 
+def resolve_key(events, key_snap=True):
+    """Detect the song's key and, when asked, snap the events into it.
+
+    The key is detected whether or not snapping is requested: the band/nes
+    arranger needs the tonic to build its diatonic triads, so ``--key-snap``
+    must not be able to switch ``--arrange`` off as a side effect. What
+    ``--key-snap`` controls is only whether the off-key notes are moved.
+
+    Returns ``(events, scale, tonic, degrees, note)``. ``note`` is the report
+    line describing what happened, or ``None`` when no key could be detected.
+    """
+    key_name, scale, tonic, degrees = detect_key(events)
+    if not scale:
+        return events, None, None, None, None
+    if key_snap:
+        events, moved = snap_to_key(events, scale)
+        note = f"key: {key_name} ({moved} notes snapped)"
+    else:
+        note = f"key: {key_name} (notes left as transcribed)"
+    return events, scale, tonic, degrees, note
+
+
 def diatonic_triads(tonic, degrees):
     """The key's seven diatonic triads as (root_pc, (pc, pc, pc)) tuples."""
     triads = []
@@ -882,6 +904,20 @@ def bass_from_chords(chords, beats, tight):
             moment += step
             beat_index += 1
     return notes
+
+
+def plan_arrangement(events, beats, key_tonic, key_degrees, tight=False):
+    """The band/nes arranger: a chord progression plus a bass on the roots.
+
+    Returns ``(chords, bass_notes)``, both empty when there is no key to build
+    diatonic triads from. That is the same fallback ``--arrange off`` asks for,
+    so the renderer simply replays the transcription instead.
+    """
+    if key_tonic is None:
+        return [], []
+    triads = diatonic_triads(key_tonic, key_degrees)
+    chords = detect_chords(events, beats, triads)
+    return chords, bass_from_chords(chords, beats, tight=tight)
 
 
 def drum_pattern(drum_hits, beats, steps=DRUM_PATTERN_STEPS,
@@ -1966,15 +2002,12 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
     if method == METHOD_TRANSCRIBE and voices in (VOICES_BAND, VOICES_NES):
         events = transcribe_events(signal, sample_rate, picked)
         events = clean_events(events)
-        key_line = None
-        key_scale = None
-        key_tonic = None
-        key_degrees = None
-        if key_snap:
-            key_name, key_scale, key_tonic, key_degrees = detect_key(events)
-            if key_scale:
-                events, moved = snap_to_key(events, key_scale)
-                key_line = f"key: {key_name} ({moved} notes snapped)"
+        # The key is detected whether or not it is used to snap the notes: the
+        # arranger needs its tonic, so --key-snap must not be able to switch
+        # --arrange off as a side effect.
+        events, key_scale, key_tonic, key_degrees, key_line = resolve_key(
+            events, key_snap=key_snap,
+        )
         lead_notes = melody_line(events)
         drum_hits = detect_drums(stems.get("drums"), sample_rate)
         nes = voices == VOICES_NES
@@ -1993,10 +2026,10 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
                 echo_delay = int(0.5 * 60.0 / tempo * rate)
             span = max(end for start, end, pitch, amplitude in events)
             grid, beats = build_grid(beat_times, tempo, span, subdivisions=4)
-            if arrange and key_tonic is not None:
-                triads = diatonic_triads(key_tonic, key_degrees)
-                chords = detect_chords(events, beats, triads)
-                bass_notes = bass_from_chords(chords, beats, tight=nes)
+            if arrange:
+                chords, bass_notes = plan_arrangement(
+                    events, beats, key_tonic, key_degrees, tight=nes,
+                )
             if nes:
                 if lead_notes:
                     lead_notes = quantize_notes(lead_notes, tempo, beat_times)
@@ -2006,9 +2039,10 @@ def convert(input_path, output_path=None, format=None, bits=DEFAULT_BITS,
                 drum_hits = accent_drums(drum_hits, beats)
         except Exception:
             chords = []
+            bass_notes = []
         if not bass_notes:
             bass_notes = bass_from_stem(stems.get("bass"), sample_rate)
-            if key_scale:
+            if key_snap and key_scale:
                 bass_notes = snap_notes_to_key(bass_notes, key_scale)
 
         voice = render_band(events, rate, duty, transpose,
