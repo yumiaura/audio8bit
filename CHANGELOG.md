@@ -30,6 +30,12 @@ All notable changes to this project are documented here. The format follows
   basic-pitch and librosa stubbed at the module boundary, so the arrangement
   decision is covered by tests. CI now runs the suite.
 
+### Changed
+
+- Tests: every `_` discard in a tuple unpack now has a real name, and the two
+  em dashes in the `test_convert_band.py` docstring are gone, to match the
+  project's naming and punctuation rules (`chore/tests-naming-cleanup`).
+
 ## 0.0.3 - 2026-07-02
 
 ### Added

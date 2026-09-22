@@ -322,7 +322,7 @@ class TestRenderers:
     @pytest.mark.parametrize("arp", [False, True])
     def test_render_band_is_finite_and_deterministic(self, arp):
         events = sample_events()
-        lead = [[s, e - s, p] for s, e, p, _ in events]
+        lead = [[s, e - s, p] for s, e, p, amp in events]
         first = c.render_band(events, 22050, 0.25, 0, lead_notes=lead,
                               bass_notes=[], drum_hits=[(0.0, "kick", 1.0)],
                               arp=arp, vibrato=arp, chords=[], echo_delay=0)
@@ -394,7 +394,7 @@ class TestDrumHelpers:
     def test_accent_drums_boosts_only_on_beat_hits(self):
         beats = np.arange(0.0, 4.0, 0.5)
         out = c.accent_drums(self.HITS, beats)
-        by_time = {onset: velocity for onset, _, velocity in out}
+        by_time = {onset: velocity for onset, kind, velocity in out}
         assert by_time[0.5] == pytest.approx(0.9 * c.BEAT_ACCENT)
         assert by_time[1.0] == pytest.approx(0.8 * c.BEAT_ACCENT)
         assert by_time[2.3] == pytest.approx(0.7)      # off the beat
@@ -417,8 +417,8 @@ class TestDrumHelpers:
         hits = [(index * 2.0, "kick", 1.0) for index in range(4)]
         pattern = c.drum_pattern(hits, beats)
         assert len(pattern) == 4
-        assert all(kind == "kick" for _, kind, _ in pattern)
-        assert [round(onset, 6) for onset, _, _ in pattern] == [0.0, 2.0, 4.0, 6.0]
+        assert all(kind == "kick" for onset, kind, velocity in pattern)
+        assert [round(onset, 6) for onset, kind, velocity in pattern] == [0.0, 2.0, 4.0, 6.0]
 
 
 # --------------------------------------------------------------------------
@@ -445,7 +445,7 @@ class TestValidateMelody:
         assert ok, "\n".join(lines)
 
     def test_every_check_reports_a_target(self):
-        _, lines = c.validate_melody(GOOD_LINE, self.render(), 22050)
+        ok, lines = c.validate_melody(GOOD_LINE, self.render(), 22050)
         joined = "\n".join(lines)
         for name in self.CHECKS:
             assert name in joined
@@ -482,7 +482,7 @@ class TestValidateAudio:
 
     def test_clipping_is_flagged(self):
         clipped = np.full(4096, 255, dtype=np.uint8)
-        ok, _ = c.validate_audio(clipped, 22050, 5)
+        ok, lines = c.validate_audio(clipped, 22050, 5)
         assert not ok
 
 

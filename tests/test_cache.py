@@ -166,7 +166,7 @@ class TestStemCache:
         source.write_bytes(b"fake audio")
         cache.save_cached_stems(source, STEMS, 44100, demucs_model="htdemucs",
                                 separation_seed=0, shifts=0, cache_dir=tmp_path)
-        entry, _ = cache.stem_cache_dir(source, demucs_model="htdemucs",
+        entry, payload = cache.stem_cache_dir(source, demucs_model="htdemucs",
                                         separation_seed=0, shifts=0,
                                         cache_dir=tmp_path)
         (entry / "metadata.json").write_text("{ not json", encoding="utf-8")
@@ -179,7 +179,7 @@ class TestStemCache:
         source.write_bytes(b"fake audio")
         cache.save_cached_stems(source, STEMS, 44100, demucs_model="htdemucs",
                                 separation_seed=0, shifts=0, cache_dir=tmp_path)
-        entry, _ = cache.stem_cache_dir(source, demucs_model="htdemucs",
+        entry, payload = cache.stem_cache_dir(source, demucs_model="htdemucs",
                                         separation_seed=0, shifts=0,
                                         cache_dir=tmp_path)
         (entry / "vocals.wav").unlink()

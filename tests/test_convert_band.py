@@ -1,8 +1,8 @@
 """End-to-end tests for the ``band``/``nes`` branch of ``convert()``.
 
 The heavy dependencies (Demucs, basic-pitch, librosa) are replaced at the
-module boundary, so the whole arrangement decision — key detection, snapping,
-the chord arranger, the bass fallback and the quality report — still runs for
+module boundary, so the whole arrangement decision (key detection, snapping,
+the chord arranger, the bass fallback and the quality report) still runs for
 real on plain NumPy data.
 """
 
@@ -91,14 +91,14 @@ def line(report, prefix):
 class TestBandArrangement:
 
     def test_the_default_run_arranges(self, band_run):
-        quality_ok, report, _ = band_run()
+        quality_ok, report, written = band_run()
         assert quality_ok, "\n".join(report)
         assert line(report, "voices:") == "voices: band"
         assert "chords:" in line(report, "bass:")
         assert "notes snapped" in line(report, "key:")
 
     def test_the_render_is_real_audio(self, band_run):
-        _, _, written = band_run()
+        quality_ok, report, written = band_run()
         assert written["samples"].dtype == np.uint8
         assert written["samples"].size > int(SECONDS * c.DEFAULT_RATE)
         assert written["rate"] == c.DEFAULT_RATE
@@ -107,7 +107,7 @@ class TestBandArrangement:
 
     def test_key_snap_off_still_arranges(self, band_run):
         """The regression: ``--key-snap off`` used to disable ``--arrange``."""
-        quality_ok, report, _ = band_run(key_snap=False)
+        quality_ok, report, written = band_run(key_snap=False)
         assert quality_ok, "\n".join(report)
         assert "chords:" in line(report, "bass:")
         assert "left as transcribed" in line(report, "key:")
@@ -118,13 +118,13 @@ class TestBandArrangement:
 
         def spy(events, key_snap=True):
             result = original(events, key_snap=key_snap)
-            seen["pitches"] = [pitch for _, _, pitch, _ in result[0]]
+            seen["pitches"] = [pitch for start, end, pitch, amp in result[0]]
             return result
 
         monkeypatch.setattr(c, "resolve_key", spy)
         band_run(key_snap=False)
         # The off-key F# survives untouched.
-        assert seen["pitches"] == [pitch for _, _, pitch, _ in make_events()]
+        assert seen["pitches"] == [pitch for start, end, pitch, amp in make_events()]
         assert 66.0 in seen["pitches"]
 
     def test_the_stem_bass_is_only_snapped_when_key_snap_is_on(
@@ -147,13 +147,13 @@ class TestBandArrangement:
         assert calls == [[[0.0, 1.0, 42.0]]]
 
     def test_arrange_off_replays_the_transcription(self, band_run):
-        _, report, _ = band_run(arrange=False)
+        quality_ok, report, written = band_run(arrange=False)
         assert "chords:" not in line(report, "bass:")
         assert "bass: 1 notes" in line(report, "bass:")   # the stem fallback
 
     def test_echo_adds_a_tail_that_echo_off_does_not(self, band_run):
-        _, _, dry = band_run(echo=False)
-        _, _, wet = band_run(echo=True)
+        dry_ok, dry_report, dry = band_run(echo=False)
+        wet_ok, wet_report, wet = band_run(echo=True)
         assert not np.array_equal(dry["samples"], wet["samples"])
         difference = (wet["samples"].astype(np.int32)
                       - dry["samples"].astype(np.int32))
@@ -164,13 +164,13 @@ class TestBandArrangement:
         assert changed.max() > int(8.0 * c.DEFAULT_RATE)
 
     def test_nes_adds_the_arpeggio_and_beat_quantising(self, band_run):
-        _, report, _ = band_run(voices="nes")
+        quality_ok, report, written = band_run(voices="nes")
         assert "arpeggio, beat-quantised" in line(report, "bass:")
         assert "chords:" in line(report, "bass:")
 
     def test_the_report_is_deterministic(self, band_run):
-        _, first, _ = band_run()
-        _, second, _ = band_run()
+        first_ok, first, first_written = band_run()
+        second_ok, second, second_written = band_run()
         assert first == second
 
 
@@ -181,13 +181,13 @@ class TestBandArrangementWithoutAKey:
                                                     monkeypatch):
         monkeypatch.setattr(c, "detect_key",
                             lambda events: (None, None, None, None))
-        _, report, _ = band_run()
+        quality_ok, report, written = band_run()
         assert "chords:" not in line(report, "bass:")
         assert not any(entry.startswith("key:") for entry in report)
 
     def test_a_missing_key_still_produces_audio(self, band_run, monkeypatch):
         monkeypatch.setattr(c, "detect_key",
                             lambda events: (None, None, None, None))
-        quality_ok, _, written = band_run()
+        quality_ok, report, written = band_run()
         assert quality_ok
         assert written["samples"].size > 0

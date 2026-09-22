@@ -91,25 +91,25 @@ class TestSnapToKey:
         # 61 (C#) can go to 60 or 62; both are in C major, and the docstring
         # promises the lower one.
         events = ev((0.0, 1.0, 61, 1.0))
-        snapped, _ = c.snap_to_key(events, self.scale)
+        snapped, moved = c.snap_to_key(events, self.scale)
         assert snapped[0][2] == 60.0
 
     def test_leaves_in_scale_notes_untouched(self):
         events = ev((0.0, 1.0, 60, 1.0), (1.0, 1.0, 67, 1.0))
         snapped, moved = c.snap_to_key(events, self.scale)
         assert moved == 0
-        assert [p for _, _, p, _ in snapped] == [60.0, 67.0]
+        assert [p for start, end, p, amp in snapped] == [60.0, 67.0]
 
     def test_is_idempotent(self):
         events = ev((0.0, 1.0, 66, 1.0), (1.0, 1.0, 70, 1.0))
-        once, _ = c.snap_to_key(events, self.scale)
+        once, moved = c.snap_to_key(events, self.scale)
         twice, moved = c.snap_to_key(once, self.scale)
         assert moved == 0
-        assert [p for _, _, p, _ in twice] == [p for _, _, p, _ in once]
+        assert [p for start, end, p, amp in twice] == [p for start, end, p, amp in once]
 
     def test_keeps_timing_and_amplitude(self):
         events = ev((0.25, 1.5, 66, 0.4))
-        snapped, _ = c.snap_to_key(events, self.scale)
+        snapped, moved = c.snap_to_key(events, self.scale)
         assert snapped[0][0] == 0.25
         assert snapped[0][1] == 1.75
         assert snapped[0][3] == 0.4
@@ -139,7 +139,7 @@ class TestResolveKey:
     """
 
     def test_key_is_detected_even_when_snapping_is_off(self):
-        (_, _, tonic, degrees, note) = c.resolve_key(A_MINOR, key_snap=False)
+        (events, scale, tonic, degrees, note) = c.resolve_key(A_MINOR, key_snap=False)
         assert tonic is not None
         assert degrees == c.MINOR_SCALE_DEGREES
         assert note is not None
@@ -147,14 +147,14 @@ class TestResolveKey:
 
     def test_snapping_on_moves_the_notes(self):
         events = ev((0.0, 1.0, 60, 1.0), (1.0, 1.0, 66, 1.0))
-        snapped, _, _, _, note = c.resolve_key(events, key_snap=True)
+        snapped, scale, tonic, degrees, note = c.resolve_key(events, key_snap=True)
         assert int(snapped[1][2]) % 12 in c.detect_key(events)[1]
         assert "snapped" in note
 
     def test_snapping_off_keeps_every_pitch(self):
         events = ev((0.0, 1.0, 60, 1.0), (1.0, 1.0, 66, 1.0))
-        snapped, _, _, _, note = c.resolve_key(events, key_snap=False)
-        assert [p for _, _, p, _ in snapped] == [60.0, 66.0]
+        snapped, scale, tonic, degrees, note = c.resolve_key(events, key_snap=False)
+        assert [p for start, end, p, amp in snapped] == [60.0, 66.0]
         assert note is not None
         assert "snapped" not in note
 
@@ -192,14 +192,14 @@ class TestDetectChords:
         chords = c.detect_chords(C_MAJOR, BEATS, self.triads)
         assert chords
         assert chords[0][0] == 0.0
-        assert chords[-1][1] >= max(end for _, end, _, _ in C_MAJOR)
-        for (_, end, _, _), (next_start, _, _, _) in zip(chords, chords[1:]):
-            assert end == next_start
+        assert chords[-1][1] >= max(end for start, end, pitch, amp in C_MAJOR)
+        for current, following in zip(chords, chords[1:]):
+            assert current[1] == following[0]
 
     def test_uses_only_diatonic_roots(self):
-        roots = {root for _, _, root, _ in c.detect_chords(C_MAJOR, BEATS,
+        roots = {root for start, end, root, triad in c.detect_chords(C_MAJOR, BEATS,
                                                             self.triads)}
-        assert roots <= {root for root, _ in self.triads}
+        assert roots <= {root for root, triad in self.triads}
 
     def test_silent_stretch_carries_the_previous_chord(self):
         events = ev((0.0, 1.0, 60, 1.0), (4.0, 1.0, 67, 1.0))
@@ -222,7 +222,7 @@ class TestBassFromChords:
     def test_loose_holds_one_root_per_segment(self):
         notes = c.bass_from_chords(self.chords, BEATS, tight=False)
         assert len(notes) == len(self.chords)
-        for note, (start, end, root_pc, _) in zip(notes, self.chords):
+        for note, (start, end, root_pc, triad) in zip(notes, self.chords):
             assert note[0] == start
             assert note[1] == pytest.approx(end - start)
             assert note[2] % 12 == root_pc
@@ -231,7 +231,7 @@ class TestBassFromChords:
         notes = c.bass_from_chords(self.chords, BEATS, tight=True)
         step = float(np.median(np.diff(BEATS)))
         assert len(notes) > len(self.chords)
-        for start, duration, _ in notes:
+        for start, duration, midi in notes:
             assert duration == pytest.approx(step * 0.85)
 
     def test_tight_puts_the_fifth_on_every_fourth_beat(self):
@@ -244,7 +244,7 @@ class TestBassFromChords:
 
     def test_every_note_stays_in_the_bass_register(self):
         for tight in (True, False):
-            for _, _, midi in c.bass_from_chords(self.chords, BEATS,
+            for start, duration, midi in c.bass_from_chords(self.chords, BEATS,
                                                  tight=tight):
                 assert c.BASS_ROOT_LOW <= midi <= c.BASS_ROOT_HIGH
 
@@ -291,7 +291,7 @@ class TestCleanEvents:
     def test_drops_short_and_quiet_litter(self):
         events = ev((0.0, 1.0, 60, 1.0), (1.0, 0.01, 72, 0.02))
         cleaned = c.clean_events(events)
-        assert [p for _, _, p, _ in cleaned] == [60]
+        assert [p for start, end, p, amp in cleaned] == [60]
 
     def test_keeps_short_but_loud_notes(self):
         events = ev((0.0, 1.0, 60, 1.0), (1.0, 0.01, 72, 1.0))
@@ -320,7 +320,7 @@ class TestCleanEvents:
     def test_output_is_sorted_by_time(self):
         events = ev((2.0, 0.5, 64, 1.0), (0.0, 0.5, 60, 1.0),
                     (1.0, 0.5, 62, 1.0))
-        starts = [start for start, _, _, _ in c.clean_events(events)]
+        starts = [start for start, end, pitch, amp in c.clean_events(events)]
         assert starts == sorted(starts)
 
 
@@ -338,7 +338,7 @@ class TestMelodyLine:
             (1.5, 0.5, 74, 1.0), (1.5, 0.5, 62, 0.4),
         )
         line = c.melody_line(texture)
-        assert [int(pitch) for _, _, pitch in line] == [72, 74, 76, 74]
+        assert [int(pitch) for start, duration, pitch in line] == [72, 74, 76, 74]
 
     def test_empty_events_give_no_notes(self):
         assert c.melody_line([]) == []
@@ -346,12 +346,12 @@ class TestMelodyLine:
     def test_drops_notes_below_the_length_floor(self):
         texture = ev((0.0, 0.02, 72, 1.0), (0.5, 0.5, 72, 1.0))
         line = c.melody_line(texture)
-        assert all(duration >= c.MELODY_MIN_SECONDS for _, duration, _ in line)
+        assert all(duration >= c.MELODY_MIN_SECONDS for start, duration, pitch in line)
 
     def test_register_is_centred_on_the_weighted_median(self):
-        pitches = np.array([pitch for _, _, pitch, _ in C_MAJOR])
+        pitches = np.array([pitch for start, end, pitch, amp in C_MAJOR])
         weights = np.array([max(1, int((end - start) * amp * 100))
-                            for start, end, _, amp in C_MAJOR])
+                            for start, end, pitch, amp in C_MAJOR])
         centre = float(np.median(np.repeat(pitches, weights)))
         low, high = c.melody_register(C_MAJOR)
         assert low == pytest.approx(centre - c.MELODY_REGISTER_LOW)
@@ -359,8 +359,8 @@ class TestMelodyLine:
 
     def test_register_is_wide_enough_to_hold_the_melody(self):
         low, high = c.melody_register(C_MAJOR)
-        assert low < min(pitch for _, _, pitch, _ in C_MAJOR)
-        assert max(pitch for _, _, pitch, _ in C_MAJOR) < high
+        assert low < min(pitch for start, end, pitch, amp in C_MAJOR)
+        assert max(pitch for start, end, pitch, amp in C_MAJOR) < high
 
     def test_candidates_stay_inside_the_band(self):
         frames = 5
@@ -398,7 +398,7 @@ class TestBuildGrid:
         assert grid[-1] >= 2.0
 
     def test_grid_is_monotonic(self):
-        grid, _ = c.build_grid(BEATS, 120.0, 4.0, subdivisions=2)
+        grid, beats = c.build_grid(BEATS, 120.0, 4.0, subdivisions=2)
         assert np.all(np.diff(grid) > 0)
 
 
@@ -410,16 +410,17 @@ class TestQuantizeNotes:
         return c.quantize_notes(self.NOTES, 120.0, BEATS)
 
     def test_snaps_onsets_onto_the_eighth_grid(self):
-        grid, _ = c.build_grid(BEATS, 120.0, 2.0, subdivisions=2)
-        for start, _, _, _ in self.quantized():
+        grid, beats = c.build_grid(BEATS, 120.0, 2.0, subdivisions=2)
+        for start, duration, pitch, on_beat in self.quantized():
             assert np.min(np.abs(grid - start)) < 1e-9
 
     def test_rounds_pitches_to_integers(self):
-        assert all(isinstance(pitch, int) for _, _, pitch, _ in self.quantized())
+        assert all(isinstance(pitch, int)
+                   for start, duration, pitch, on_beat in self.quantized())
 
     def test_quantises_durations_to_sixteenths(self):
         sixteenth = 60.0 / 120.0 / 4.0
-        for _, duration, _, _ in self.quantized():
+        for start, duration, pitch, on_beat in self.quantized():
             assert duration / sixteenth == pytest.approx(round(
                 duration / sixteenth))
 
@@ -429,9 +430,10 @@ class TestQuantizeNotes:
             assert previous[0] + previous[1] <= following[0] + 1e-9
 
     def test_marks_notes_that_land_on_a_beat(self):
-        flags = [on_beat for _, _, _, on_beat in self.quantized()]
+        flags = [on_beat for start, duration, pitch, on_beat
+                 in self.quantized()]
         assert True in flags and False in flags
-        for start, _, _, on_beat in self.quantized():
+        for start, duration, pitch, on_beat in self.quantized():
             assert on_beat == (np.min(np.abs(BEATS - start)) < 0.01)
 
 
