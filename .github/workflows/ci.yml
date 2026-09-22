@@ -1,7 +1,12 @@
 name: CI
 
-# Runs on every push to main and on pull requests. Builds the package and
-# smoke-tests the CLI so the build-status badge reflects the real state.
+# Runs on every push to main and on pull requests. Builds the package, runs the
+# test suite and smoke-tests the CLI so the build-status badge reflects the real
+# state.
+#
+# The tests need NumPy only: Demucs, basic-pitch and librosa are imported
+# lazily by the code under test, and the tests that need them stub them at the
+# module boundary.
 
 on:
   push:
@@ -10,7 +15,7 @@ on:
 
 jobs:
   build:
-    name: Build and smoke-test
+    name: Build and test
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
@@ -25,6 +30,12 @@ jobs:
         run: |
           python -m pip install --upgrade build numpy
           python -m build
+
+      - name: Install the test dependencies
+        run: python -m pip install --upgrade pytest
+
+      - name: Run the test suite
+        run: python -m pytest
 
       - name: Smoke-test the CLI
         run: |

@@ -4,6 +4,32 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+- `--voices band` / `--voices nes`: the arranger no longer depends on
+  `--key-snap`. The key was only detected when snapping was switched on, so
+  `--key-snap off` silently switched `--arrange` off too and fell back to
+  replaying the transcription with the stem-tracked bass, with no chord
+  progression and no chord-root bass. The key is now always detected (the
+  arranger needs its tonic to build its diatonic triads) and always reported;
+  `--key-snap` only decides whether the off-key notes are moved into it, and
+  the stem-tracked bass is only snapped when it is on. The arranger's fallback
+  is now all-or-nothing: if anything inside it raises, both the chords and the
+  chord-root bass are dropped, so a half-arranged mix is no longer possible.
+
+### Added
+
+- A test suite under `tests/`, covering the parts of the DSP core that need
+  NumPy only: key detection and snapping, the chord arranger, the melody and
+  bass lines, the beat grid and note quantisation, band-limited synthesis, the
+  smooth limiter, echo, loudness normalisation, dither and quantisation, the
+  quality gates, the on-disk stem cache and the CLI argument gates. It also
+  runs the whole `band`/`nes` path of `convert()` end to end with Demucs,
+  basic-pitch and librosa stubbed at the module boundary, so the arrangement
+  decision is covered by tests. CI now runs the suite.
+
 ## 0.0.3 - 2026-07-02
 
 ### Added

@@ -19,8 +19,14 @@ classifiers = [
 ]
 dependencies = ["numpy>=1.21", "demucs>=4.0", "librosa>=0.10", "basic-pitch>=0.4"]
 
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
 [project.scripts]
 audio8bit = "audio8bit.cli:main"
 
 [tool.setuptools]
 packages = ["audio8bit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
